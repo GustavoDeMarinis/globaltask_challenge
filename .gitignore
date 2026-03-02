@@ -1,3 +1,4 @@
+
 # The directory Mix will write compiled artifacts to.
 /_build/
 
@@ -24,4 +25,3 @@ erl_crash.dump
 
 # Ignore package tarball (built via "mix hex.build").
 globaltask-*.tar
-
