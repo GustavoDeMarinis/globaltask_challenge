@@ -79,7 +79,27 @@ defmodule GlobaltaskWeb.Telemetry do
       summary("vm.memory.total", unit: {:byte, :kilobyte}),
       summary("vm.total_run_queue_lengths.total"),
       summary("vm.total_run_queue_lengths.cpu"),
-      summary("vm.total_run_queue_lengths.io")
+      summary("vm.total_run_queue_lengths.io"),
+
+      # Oban Metrics
+      summary("oban.job.stop.duration",
+        tags: [:queue, :worker],
+        unit: {:native, :millisecond},
+        description: "Time spent executing an Oban job"
+      ),
+      summary("oban.job.exception.duration",
+        tags: [:queue, :worker],
+        unit: {:native, :millisecond},
+        description: "Duration of Oban jobs that raised an exception"
+      ),
+      counter("oban.job.stop.count",
+        tags: [:queue, :worker],
+        description: "Number of completed Oban jobs"
+      ),
+      counter("oban.job.exception.count",
+        tags: [:queue, :worker],
+        description: "Number of Oban jobs that raised an exception"
+      )
     ]
   end
 

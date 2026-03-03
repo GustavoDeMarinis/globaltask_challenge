@@ -1,0 +1,12 @@
+# Don't send these to Docker
+_build/
+deps/
+.elixir_ls/
+.git/
+.env
+*.ez
+erl_crash.dump
+node_modules/
+cover/
+doc/
+tmp/

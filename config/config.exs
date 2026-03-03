@@ -25,7 +25,10 @@ config :globaltask, GlobaltaskWeb.Endpoint,
 config :globaltask, Oban,
   repo: Globaltask.Repo,
   queues: [default: 10],
-  plugins: [Oban.Plugins.Pruner]
+  plugins: [
+    Oban.Plugins.Pruner,
+    {Oban.Plugins.Lifeline, rescue_after: :timer.minutes(30)}
+  ]
 
 # Configures Elixir's Logger
 config :logger, :default_formatter,
