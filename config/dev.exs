@@ -23,7 +23,7 @@ config :globaltask, GlobaltaskWeb.Endpoint,
   check_origin: false,
   code_reloader: true,
   debug_errors: true,
-  secret_key_base: System.fetch_env!("SECRET_KEY_BASE"),
+  secret_key_base: System.get_env("SECRET_KEY_BASE", "dev-only-secret-key-base-that-is-at-least-64-bytes-long-for-phoenix"),
   watchers: []
 
 # ## SSL Support
