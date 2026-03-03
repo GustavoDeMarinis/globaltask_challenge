@@ -2,8 +2,8 @@ import Config
 
 # Configure your database
 config :globaltask, Globaltask.Repo,
-  username: "postgres",
-  password: "postgres",
+  username: "globaltask",
+  password: "globaltask",
   hostname: "localhost",
   database: "globaltask_dev",
   stacktrace: true,

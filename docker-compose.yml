@@ -1,0 +1,40 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: globaltask_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: globaltask
+      POSTGRES_PASSWORD: globaltask
+      POSTGRES_DB: globaltask_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U globaltask"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    profiles:
+      - dev
+      - full
+
+  app:
+    build:
+      context: .
+    container_name: globaltask_app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: ecto://globaltask:globaltask@postgres/globaltask_dev
+      SECRET_KEY_BASE: ${SECRET_KEY_BASE}
+      PHX_HOST: localhost
+    ports:
+      - "4000:4000"
+    profiles:
+      - full
+
+volumes:
+  pg_data:
