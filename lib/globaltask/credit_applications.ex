@@ -118,6 +118,10 @@ defmodule Globaltask.CreditApplications do
   Validates that the transition is allowed by the state machine.
   Uses optimistic locking to prevent race conditions.
 
+  After a successful update, calls `on_status_change/2` on the country's
+  rules module, allowing country-specific side-effects on transitions
+  (e.g. re-validation before approval, audit logging).
+
   ## Examples
 
       iex> update_status(app, "pending_review")  # from "created"
@@ -127,14 +131,28 @@ defmodule Globaltask.CreditApplications do
       {:error, %Ecto.Changeset{}}
   """
   @spec update_status(%CreditApplication{}, String.t()) ::
-          {:ok, %CreditApplication{}} | {:error, Ecto.Changeset.t() | :stale}
+          {:ok, %CreditApplication{}} | {:error, Ecto.Changeset.t() | :stale | term()}
   def update_status(%CreditApplication{} = app, new_status) do
-    app
-    |> CreditApplication.update_status_changeset(%{status: new_status})
-    |> Repo.update()
+    with {:ok, updated_app} <- do_update_status(app, new_status),
+         :ok <- notify_country_hook(updated_app, new_status) do
+      {:ok, updated_app}
+    end
   rescue
     Ecto.StaleEntryError ->
       {:error, :stale}
+  end
+
+  defp do_update_status(app, new_status) do
+    app
+    |> CreditApplication.update_status_changeset(%{status: new_status})
+    |> Repo.update()
+  end
+
+  defp notify_country_hook(app, new_status) do
+    case Globaltask.CountryRules.resolve(app.country) do
+      {:ok, module} -> module.on_status_change(app, new_status)
+      {:error, _} -> :ok
+    end
   end
 
   # -- Private filters --
