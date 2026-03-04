@@ -89,6 +89,30 @@ defmodule Globaltask.CreditApplications do
   end
 
   @doc """
+  Updates an existing credit application's fields.
+
+  Does NOT allow changing `status` or `country`. Uses optimistic locking.
+
+  ## Examples
+
+      iex> update_application(app, %{"requested_amount" => "20000"})
+      {:ok, %CreditApplication{requested_amount: #Decimal<20000>}}
+
+      iex> update_application(app, %{"requested_amount" => "-1"})
+      {:error, %Ecto.Changeset{}}
+  """
+  @spec update_application(%CreditApplication{}, map()) ::
+          {:ok, %CreditApplication{}} | {:error, Ecto.Changeset.t() | :stale}
+  def update_application(%CreditApplication{} = app, attrs) do
+    app
+    |> CreditApplication.update_changeset(attrs)
+    |> Repo.update()
+  rescue
+    Ecto.StaleEntryError ->
+      {:error, :stale}
+  end
+
+  @doc """
   Updates the status of a credit application.
 
   Validates that the transition is allowed by the state machine.

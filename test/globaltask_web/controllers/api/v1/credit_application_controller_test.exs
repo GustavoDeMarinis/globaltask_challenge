@@ -164,4 +164,34 @@ defmodule GlobaltaskWeb.API.V1.CreditApplicationControllerTest do
       assert updated.lock_version == app.lock_version + 1
     end
   end
+
+  # -- PUT /api/v1/credit_applications/:id --
+
+  describe "PUT /api/v1/credit_applications/:id" do
+    test "with valid attrs returns 200 with updated data", %{conn: conn} do
+      app = create_application()
+      conn = put(conn, ~p"/api/v1/credit_applications/#{app.id}", %{"full_name" => "Updated Name", "requested_amount" => 25000})
+      assert %{"data" => data} = json_response(conn, 200)
+      assert data["full_name"] == "Updated Name"
+      assert data["requested_amount"] == "25000"
+    end
+
+    test "with invalid field returns 422", %{conn: conn} do
+      app = create_application()
+      conn = put(conn, ~p"/api/v1/credit_applications/#{app.id}", %{"requested_amount" => -5})
+      assert %{"errors" => _} = json_response(conn, 422)
+    end
+
+    test "does not change country", %{conn: conn} do
+      app = create_application()
+      conn = put(conn, ~p"/api/v1/credit_applications/#{app.id}", %{"country" => "BR"})
+      assert %{"data" => data} = json_response(conn, 200)
+      assert data["country"] == "ES"
+    end
+
+    test "for unknown id returns 404", %{conn: conn} do
+      conn = put(conn, ~p"/api/v1/credit_applications/#{Ecto.UUID.generate()}", %{"full_name" => "Test"})
+      assert json_response(conn, 404)
+    end
+  end
 end

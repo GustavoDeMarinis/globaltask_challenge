@@ -64,6 +64,31 @@ defmodule Globaltask.CreditApplications.CreditApplication do
     )
   end
 
+  @update_fields ~w(full_name document_type document_number requested_amount monthly_income application_date provider_payload)a
+
+  @doc """
+  Changeset for updating an existing credit application's fields.
+
+  Does NOT cast `status` or `country` — status changes go through
+  `update_status_changeset/2`, and country is immutable after creation.
+  Uses optimistic locking via `lock_version`.
+  """
+  @spec update_changeset(%__MODULE__{}, map()) :: Ecto.Changeset.t()
+  def update_changeset(application, attrs) do
+    application
+    |> cast(attrs, @update_fields)
+    |> validate_length(:full_name, max: 255)
+    |> validate_length(:document_number, max: 50)
+    |> validate_number(:requested_amount, greater_than: 0)
+    |> validate_number(:monthly_income, greater_than: 0)
+    |> validate_inclusion(:document_type, @valid_document_types)
+    |> unique_constraint([:document_number, :country],
+      name: :credit_applications_document_number_country_active_index,
+      message: "an active application already exists for this document in this country"
+    )
+    |> optimistic_lock(:lock_version)
+  end
+
   @doc """
   Changeset for updating the status of an existing credit application.
 

@@ -61,6 +61,12 @@ Do NOT include yet: country-specific rules, provider integrations, async process
   - [ ] `validate_inclusion(:country, @valid_countries)`
   - [ ] `validate_inclusion(:document_type, @valid_document_types)`
   - [ ] `unique_constraint([:document_number, :country], name: :credit_applications_document_number_country_active_index)` — maps partial unique index to changeset error
+- [ ] Implement `update_changeset/2`:
+  - [ ] `cast` fields: `full_name`, `document_type`, `document_number`, `requested_amount`, `monthly_income`, `application_date`, `provider_payload`
+  - [ ] Do NOT cast `status` or `country` — status has its own changeset, country is immutable
+  - [ ] Apply same validations as `create_changeset` (lengths, numbers, inclusion)
+  - [ ] `unique_constraint` on `[:document_number, :country]`
+  - [ ] `optimistic_lock(:lock_version)`
 - [ ] Implement `update_status_changeset/2`:
   - [ ] `cast` only `status`
   - [ ] `validate_required([:status])`
@@ -89,10 +95,16 @@ Do NOT include yet: country-specific rules, provider integrations, async process
   - [ ] Execute data query with `limit` and `offset`
   - [ ] Return `%{data: [...], page: integer, page_size: integer, total: integer}`
   - [ ] Note: count and data are two separate queries — under very high concurrency they may be slightly inconsistent. Acceptable for MVP; document in README
+- [ ] Implement `update_application(app, attrs)`:
+  - [ ] Build changeset via `CreditApplication.update_changeset(app, attrs)`
+  - [ ] `Repo.update(changeset)`
+  - [ ] Rescue `Ecto.StaleEntryError` → return `{:error, :stale}`
+  - [ ] Returns `{:ok, updated_app}` or `{:error, changeset | :stale}`
 - [ ] Implement `update_status(app, new_status)`:
   - [ ] Build changeset via `CreditApplication.update_status_changeset(app, %{status: new_status})`
   - [ ] `Repo.update(changeset)`
-  - [ ] Returns `{:ok, updated_app}` or `{:error, changeset}`
+  - [ ] Rescue `Ecto.StaleEntryError` → return `{:error, :stale}`
+  - [ ] Returns `{:ok, updated_app}` or `{:error, changeset | :stale}`
 
 ### 4. FallbackController
 

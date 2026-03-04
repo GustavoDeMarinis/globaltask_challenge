@@ -23,7 +23,7 @@ defmodule GlobaltaskWeb.Router do
   scope "/api/v1", GlobaltaskWeb.API.V1 do
     pipe_through :api
 
-    resources "/credit_applications", CreditApplicationController, only: [:create, :show, :index]
+    resources "/credit_applications", CreditApplicationController, only: [:create, :show, :index, :update]
     patch "/credit_applications/:id/status", CreditApplicationController, :update_status
   end
 

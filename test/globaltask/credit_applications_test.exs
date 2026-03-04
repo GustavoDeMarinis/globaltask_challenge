@@ -163,6 +163,41 @@ defmodule Globaltask.CreditApplicationsTest do
     end
   end
 
+  # -- update_application/2 --
+
+  describe "update_application/2" do
+    test "with valid attrs returns {:ok, updated_app}" do
+      app = create_application()
+      assert {:ok, updated} = CreditApplications.update_application(app, %{"full_name" => "Updated Name", "requested_amount" => 20000})
+      assert updated.full_name == "Updated Name"
+      assert Decimal.compare(updated.requested_amount, Decimal.new("20000")) == :eq
+    end
+
+    test "with invalid requested_amount returns {:error, changeset}" do
+      app = create_application()
+      assert {:error, changeset} = CreditApplications.update_application(app, %{"requested_amount" => -1})
+      assert %{requested_amount: [_]} = errors_on(changeset)
+    end
+
+    test "does not change country" do
+      app = create_application()
+      {:ok, updated} = CreditApplications.update_application(app, %{"country" => "BR"})
+      assert updated.country == "ES"
+    end
+
+    test "does not change status" do
+      app = create_application()
+      {:ok, updated} = CreditApplications.update_application(app, %{"status" => "approved"})
+      assert updated.status == "created"
+    end
+
+    test "returns {:error, :stale} when record was concurrently modified" do
+      app = create_application()
+      {:ok, _} = CreditApplications.update_application(app, %{"full_name" => "First Update"})
+      assert {:error, :stale} = CreditApplications.update_application(app, %{"full_name" => "Second Update"})
+    end
+  end
+
   # -- update_status/2 --
 
   describe "update_status/2" do
