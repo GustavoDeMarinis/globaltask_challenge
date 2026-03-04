@@ -32,14 +32,14 @@ defmodule Globaltask.CountryRulesTest do
       # ES expects "DNI", we send "CPF"
       changeset =
         %CreditApplication{}
-        |> CreditApplication.create_changeset(%{
-          "country" => "ES",
-          "full_name" => "Test User",
-          "document_type" => "CPF",
-          "document_number" => "12345678Z",
-          "requested_amount" => 10_000,
-          "monthly_income" => 3000,
-          "application_date" => "2026-03-04"
+        |> Ecto.Changeset.change(%{
+          country: "ES",
+          full_name: "Test User",
+          document_type: "CPF",
+          document_number: "12345678Z",
+          requested_amount: Decimal.new("10000"),
+          monthly_income: Decimal.new("3000"),
+          application_date: ~D[2026-03-04]
         })
         |> CountryRules.validate()
 

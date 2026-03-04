@@ -83,8 +83,8 @@ defmodule GlobaltaskWeb.API.V1.CreditApplicationControllerTest do
 
   describe "GET /api/v1/credit_applications" do
     test "with no filters returns list with meta", %{conn: conn} do
-      create_application(%{"document_number" => "IDX001"})
-      create_application(%{"document_number" => "IDX002"})
+      create_application(%{"document_number" => "23456789D"})
+      create_application(%{"document_number" => "34567890V"})
 
       conn = get(conn, ~p"/api/v1/credit_applications")
 
@@ -95,8 +95,8 @@ defmodule GlobaltaskWeb.API.V1.CreditApplicationControllerTest do
     end
 
     test "with country filter returns filtered list", %{conn: conn} do
-      create_application(%{"country" => "ES", "document_number" => "FLT001"})
-      create_application(%{"country" => "BR", "document_number" => "FLT002", "document_type" => "CPF"})
+      create_application(%{"country" => "ES", "document_number" => "23456789D"})
+      create_application(%{"country" => "BR", "document_number" => "52998224725", "document_type" => "CPF"})
 
       conn = get(conn, ~p"/api/v1/credit_applications?country=ES")
 
@@ -107,7 +107,7 @@ defmodule GlobaltaskWeb.API.V1.CreditApplicationControllerTest do
 
     test "with page and page_size returns correct page", %{conn: conn} do
       for i <- 1..5 do
-        create_application(%{"document_number" => "PAG#{String.pad_leading("#{i}", 3, "0")}"})
+        create_application(%{"document_number" => "#{10000000 + i}#{String.at("TRWAGMYFPDXBNJZSQVHLCKE", rem(10000000 + i, 23))}"})
       end
 
       conn = get(conn, ~p"/api/v1/credit_applications?page=2&page_size=2")

@@ -46,6 +46,9 @@ defmodule Globaltask.CreditApplications.CreditApplication do
 
   Does NOT cast `status` — it always defaults to `"created"`.
   This prevents callers from setting an arbitrary status on creation.
+
+  Country-specific validations (document format, business rules) are applied
+  via `Globaltask.CountryRules.validate/1` after basic field checks.
   """
   @spec create_changeset(%__MODULE__{}, map()) :: Ecto.Changeset.t()
   def create_changeset(application, attrs) do
@@ -58,6 +61,7 @@ defmodule Globaltask.CreditApplications.CreditApplication do
     |> validate_number(:monthly_income, greater_than: 0)
     |> validate_inclusion(:country, @valid_countries)
     |> validate_inclusion(:document_type, @valid_document_types)
+    |> Globaltask.CountryRules.validate()
     |> unique_constraint([:document_number, :country],
       name: :credit_applications_document_number_country_active_index,
       message: "an active application already exists for this document in this country"
@@ -72,6 +76,9 @@ defmodule Globaltask.CreditApplications.CreditApplication do
   Does NOT cast `status` or `country` — status changes go through
   `update_status_changeset/2`, and country is immutable after creation.
   Uses optimistic locking via `lock_version`.
+
+  Country-specific validations are re-applied on update to ensure
+  consistency if document or financial fields change.
   """
   @spec update_changeset(%__MODULE__{}, map()) :: Ecto.Changeset.t()
   def update_changeset(application, attrs) do
@@ -82,6 +89,7 @@ defmodule Globaltask.CreditApplications.CreditApplication do
     |> validate_number(:requested_amount, greater_than: 0)
     |> validate_number(:monthly_income, greater_than: 0)
     |> validate_inclusion(:document_type, @valid_document_types)
+    |> Globaltask.CountryRules.validate()
     |> unique_constraint([:document_number, :country],
       name: :credit_applications_document_number_country_active_index,
       message: "an active application already exists for this document in this country"

@@ -47,13 +47,13 @@ defmodule Globaltask.CreditApplicationsTest do
     test "with invalid document_type returns {:error, changeset}" do
       attrs = Map.put(@valid_attrs, "document_type", "PASSPORT")
       assert {:error, changeset} = CreditApplications.create_application(attrs)
-      assert %{document_type: [_]} = errors_on(changeset)
+      assert %{document_type: [_ | _]} = errors_on(changeset)
     end
 
     test "with invalid country returns {:error, changeset}" do
       attrs = Map.put(@valid_attrs, "country", "XX")
       assert {:error, changeset} = CreditApplications.create_application(attrs)
-      assert %{country: [_]} = errors_on(changeset)
+      assert %{country: [_ | _]} = errors_on(changeset)
     end
 
     test "ignores caller-supplied status (always defaults to 'created')" do
@@ -105,8 +105,8 @@ defmodule Globaltask.CreditApplicationsTest do
 
   describe "list_applications/1" do
     test "with no filters returns all records with pagination metadata" do
-      create_application(%{"document_number" => "AAA111"})
-      create_application(%{"document_number" => "BBB222"})
+      create_application(%{"document_number" => "23456789D"})
+      create_application(%{"document_number" => "34567890V"})
 
       result = CreditApplications.list_applications()
       assert result.total == 2
@@ -116,8 +116,8 @@ defmodule Globaltask.CreditApplicationsTest do
     end
 
     test "with country filter returns only matching records" do
-      create_application(%{"country" => "ES", "document_number" => "ES001"})
-      create_application(%{"country" => "BR", "document_number" => "BR001", "document_type" => "CPF"})
+      create_application(%{"country" => "ES", "document_number" => "23456789D"})
+      create_application(%{"country" => "BR", "document_number" => "52998224725", "document_type" => "CPF"})
 
       result = CreditApplications.list_applications(%{"country" => "ES"})
       assert result.total == 1
@@ -125,8 +125,8 @@ defmodule Globaltask.CreditApplicationsTest do
     end
 
     test "with status filter returns only matching records" do
-      app = create_application(%{"document_number" => "ST001"})
-      create_application(%{"document_number" => "ST002"})
+      app = create_application(%{"document_number" => "23456789D"})
+      create_application(%{"document_number" => "34567890V"})
       {:ok, _} = CreditApplications.update_status(app, "pending_review")
 
       result = CreditApplications.list_applications(%{"status" => "pending_review"})
@@ -135,7 +135,7 @@ defmodule Globaltask.CreditApplicationsTest do
     end
 
     test "with date_from and date_to returns only matching records" do
-      create_application(%{"document_number" => "DT001"})
+      create_application(%{"document_number" => "23456789D"})
 
       result = CreditApplications.list_applications(%{
         "date_from" => Date.to_iso8601(Date.utc_today()),
@@ -147,7 +147,7 @@ defmodule Globaltask.CreditApplicationsTest do
 
     test "with page and page_size returns correct slice and total" do
       for i <- 1..5 do
-        create_application(%{"document_number" => "PG#{String.pad_leading("#{i}", 3, "0")}"})
+        create_application(%{"document_number" => "#{10000000 + i}#{String.at("TRWAGMYFPDXBNJZSQVHLCKE", rem(10000000 + i, 23))}"})
       end
 
       result = CreditApplications.list_applications(%{"page" => 2, "page_size" => 2})

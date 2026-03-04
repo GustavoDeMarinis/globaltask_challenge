@@ -4,6 +4,10 @@ defmodule Globaltask.CountryRules.PTTest do
   alias Globaltask.CountryRules.PT
   alias Globaltask.CreditApplications.CreditApplication
 
+  import Ecto.Changeset
+
+  @fields ~w(country full_name document_type document_number requested_amount monthly_income application_date)a
+
   defp build_changeset(overrides \\ %{}) do
     defaults = %{
       "country" => "PT",
@@ -16,7 +20,7 @@ defmodule Globaltask.CountryRules.PTTest do
     }
 
     %CreditApplication{}
-    |> CreditApplication.create_changeset(Map.merge(defaults, overrides))
+    |> cast(Map.merge(defaults, overrides), @fields)
   end
 
   test "required_document_type/0 returns \"NIF\"" do

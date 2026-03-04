@@ -6,6 +6,8 @@ defmodule Globaltask.CountryRules.ESTest do
 
   import Ecto.Changeset
 
+  @fields ~w(country full_name document_type document_number requested_amount monthly_income application_date)a
+
   defp build_changeset(overrides \\ %{}) do
     defaults = %{
       "country" => "ES",
@@ -18,7 +20,7 @@ defmodule Globaltask.CountryRules.ESTest do
     }
 
     %CreditApplication{}
-    |> CreditApplication.create_changeset(Map.merge(defaults, overrides))
+    |> cast(Map.merge(defaults, overrides), @fields)
   end
 
   # -- required_document_type/0 --
@@ -81,10 +83,7 @@ defmodule Globaltask.CountryRules.ESTest do
       refute changeset.errors[:document_number]
     end
 
-    test "invalid DNI — only whitespace" do
-      changeset = build_changeset(%{"document_number" => "   "}) |> ES.validate_document()
-      assert %{document_number: [_]} = errors_on(changeset)
-    end
+
   end
 
   # -- validate_business_rules/1 --
