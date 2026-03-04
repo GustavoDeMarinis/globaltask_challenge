@@ -20,7 +20,7 @@ Do NOT include yet: country-specific rules, provider integrations, async process
 - [ ] Add column `country` — `country_code` ENUM, not null
 - [ ] Add column `full_name` — `string`, not null
 - [ ] Add column `document_type` — `document_type` ENUM, not null
-- [ ] Add column `document_id` — `string`, not null
+- [ ] Add column `document_number` — `string`, not null
 - [ ] Add column `requested_amount` — `decimal`, precision 15 scale 2, not null
 - [ ] Add column `monthly_income` — `decimal`, precision 15 scale 2, not null
 - [ ] Add column `application_date` — `date`, not null
@@ -31,8 +31,8 @@ Do NOT include yet: country-specific rules, provider integrations, async process
 - [ ] Add index on `status`
 - [ ] Add composite index on `(country, status, inserted_at DESC)` — use `execute/1` with raw SQL since Ecto does not support per-column sort direction
 - [ ] Add index on `inserted_at` — date range filters
-- [ ] Add index on `document_id` — future per-document lookups
-- [ ] Add partial unique index on `(document_id, country)` where `status NOT IN ('rejected')` — prevents duplicate active applications per person per country, but allows re-application after rejection
+- [ ] Add index on `document_number` — future per-document lookups
+- [ ] Add partial unique index on `(document_number, country)` where `status NOT IN ('rejected')` — prevents duplicate active applications per person per country, but allows re-application after rejection
 - [ ] Run migration and verify table structure
 
 ### 2. Ecto Schema
@@ -53,14 +53,14 @@ Do NOT include yet: country-specific rules, provider integrations, async process
 - [ ] Define schema fields matching the migration (use `:string` for ENUM columns — Ecto maps PG ENUMs to strings)
 - [ ] Set `status` default to `"created"` and `provider_payload` default to `%{}`
 - [ ] Implement `create_changeset/2`:
-  - [ ] `cast` fields: `country`, `full_name`, `document_type`, `document_id`, `requested_amount`, `monthly_income`, `application_date`, `provider_payload`
+  - [ ] `cast` fields: `country`, `full_name`, `document_type`, `document_number`, `requested_amount`, `monthly_income`, `application_date`, `provider_payload`
   - [ ] Do NOT cast `status` — it defaults to `"created"` and must not be settable by the caller
-  - [ ] `validate_required` for: `country`, `full_name`, `document_type`, `document_id`, `requested_amount`, `monthly_income`, `application_date`
+  - [ ] `validate_required` for: `country`, `full_name`, `document_type`, `document_number`, `requested_amount`, `monthly_income`, `application_date`
   - [ ] `validate_number(:requested_amount, greater_than: 0)`
   - [ ] `validate_number(:monthly_income, greater_than: 0)`
   - [ ] `validate_inclusion(:country, @valid_countries)`
   - [ ] `validate_inclusion(:document_type, @valid_document_types)`
-  - [ ] `unique_constraint([:document_id, :country], name: :credit_applications_document_id_country_active_index)` — maps partial unique index to changeset error
+  - [ ] `unique_constraint([:document_number, :country], name: :credit_applications_document_number_country_active_index)` — maps partial unique index to changeset error
 - [ ] Implement `update_status_changeset/2`:
   - [ ] `cast` only `status`
   - [ ] `validate_required([:status])`
@@ -125,7 +125,7 @@ Do NOT include yet: country-specific rules, provider integrations, async process
 - [ ] Implement `index/1` — returns `%{data: [...], meta: %{page, page_size, total}}`
 - [ ] Implement `show/1` — returns `%{data: data(app)}`
 - [ ] Implement `data/1`:
-  - [ ] Map struct to plain map with: `id`, `country`, `full_name`, `document_type`, `document_id`, `requested_amount`, `monthly_income`, `application_date`, `status`, `inserted_at`, `updated_at`
+  - [ ] Map struct to plain map with: `id`, `country`, `full_name`, `document_type`, `document_number`, `requested_amount`, `monthly_income`, `application_date`, `status`, `inserted_at`, `updated_at`
   - [ ] **Exclude** `provider_payload` — contains potentially sensitive bank data (§4.2). Sanitized subset to be exposed in a future issue when needed
 
 ### 7. Router
@@ -147,8 +147,8 @@ Do NOT include yet: country-specific rules, provider integrations, async process
 - [ ] `create_application/1` with invalid `document_type` returns `{:error, changeset}`
 - [ ] `create_application/1` with invalid `country` returns `{:error, changeset}`
 - [ ] `create_application/1` ignores caller-supplied `status` (always defaults to `"created"`)
-- [ ] `create_application/1` with duplicate active `document_id + country` returns `{:error, changeset}`
-- [ ] `create_application/1` with duplicate `document_id + country` where prior is `rejected` succeeds
+- [ ] `create_application/1` with duplicate active `document_number + country` returns `{:error, changeset}`
+- [ ] `create_application/1` with duplicate `document_number + country` where prior is `rejected` succeeds
 - [ ] `get_application/1` with valid id returns `{:ok, app}`
 - [ ] `get_application/1` with unknown id returns `{:error, :not_found}`
 - [ ] `get_application/1` with invalid UUID format returns `{:error, :not_found}`
@@ -167,7 +167,7 @@ Do NOT include yet: country-specific rules, provider integrations, async process
 - [ ] `POST /api/v1/credit_applications` with valid body returns `201` with JSON data
 - [ ] `POST /api/v1/credit_applications` with invalid body returns `422` with error details
 - [ ] `POST /api/v1/credit_applications` with caller-supplied status is ignored
-- [ ] `POST /api/v1/credit_applications` with duplicate active `document_id + country` returns `422`
+- [ ] `POST /api/v1/credit_applications` with duplicate active `document_number + country` returns `422`
 - [ ] `GET /api/v1/credit_applications/:id` for existing record returns `200` with data
 - [ ] `GET /api/v1/credit_applications/:id` for unknown id returns `404`
 - [ ] `GET /api/v1/credit_applications` with no filters returns list with `meta`

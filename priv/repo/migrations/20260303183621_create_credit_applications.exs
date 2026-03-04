@@ -12,7 +12,7 @@ defmodule Globaltask.Repo.Migrations.CreateCreditApplications do
       add :country, :country_code, null: false
       add :full_name, :string, null: false
       add :document_type, :document_type, null: false
-      add :document_id, :string, null: false
+      add :document_number, :string, null: false
       add :requested_amount, :decimal, precision: 15, scale: 2, null: false
       add :monthly_income, :decimal, precision: 15, scale: 2, null: false
       add :application_date, :date, null: false
@@ -26,7 +26,7 @@ defmodule Globaltask.Repo.Migrations.CreateCreditApplications do
     create index(:credit_applications, [:country])
     create index(:credit_applications, [:status])
     create index(:credit_applications, [:inserted_at])
-    create index(:credit_applications, [:document_id])
+    create index(:credit_applications, [:document_number])
 
     # Composite index for the most common paginated list query:
     # SELECT ... WHERE country = ? AND status = ? ORDER BY inserted_at DESC
@@ -38,8 +38,8 @@ defmodule Globaltask.Repo.Migrations.CreateCreditApplications do
     # Partial unique index: prevents duplicate active applications per person per country,
     # but allows re-application after rejection.
     execute """
-    CREATE UNIQUE INDEX credit_applications_document_id_country_active_index
-    ON credit_applications (document_id, country)
+    CREATE UNIQUE INDEX credit_applications_document_number_country_active_index
+    ON credit_applications (document_number, country)
     WHERE status != 'rejected'
     """
   end

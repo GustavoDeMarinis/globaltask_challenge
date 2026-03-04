@@ -27,7 +27,7 @@ defmodule Globaltask.CreditApplications.CreditApplication do
     field :country, :string
     field :full_name, :string
     field :document_type, :string
-    field :document_id, :string
+    field :document_number, :string
     field :requested_amount, :decimal
     field :monthly_income, :decimal
     field :application_date, :date
@@ -37,8 +37,8 @@ defmodule Globaltask.CreditApplications.CreditApplication do
     timestamps(type: :utc_datetime)
   end
 
-  @create_fields ~w(country full_name document_type document_id requested_amount monthly_income application_date provider_payload)a
-  @create_required ~w(country full_name document_type document_id requested_amount monthly_income application_date)a
+  @create_fields ~w(country full_name document_type document_number requested_amount monthly_income application_date provider_payload)a
+  @create_required ~w(country full_name document_type document_number requested_amount monthly_income application_date)a
 
   @doc """
   Changeset for creating a new credit application.
@@ -54,8 +54,8 @@ defmodule Globaltask.CreditApplications.CreditApplication do
     |> validate_number(:monthly_income, greater_than: 0)
     |> validate_inclusion(:country, @valid_countries)
     |> validate_inclusion(:document_type, @valid_document_types)
-    |> unique_constraint([:document_id, :country],
-      name: :credit_applications_document_id_country_active_index,
+    |> unique_constraint([:document_number, :country],
+      name: :credit_applications_document_number_country_active_index,
       message: "an active application already exists for this document in this country"
     )
   end
