@@ -33,6 +33,7 @@ defmodule Globaltask.CreditApplications.CreditApplication do
     field :application_date, :date
     field :status, :string, default: "created"
     field :provider_payload, :map, default: %{}
+    field :lock_version, :integer, default: 0
 
     timestamps(type: :utc_datetime)
   end
@@ -46,10 +47,13 @@ defmodule Globaltask.CreditApplications.CreditApplication do
   Does NOT cast `status` — it always defaults to `"created"`.
   This prevents callers from setting an arbitrary status on creation.
   """
+  @spec create_changeset(%__MODULE__{}, map()) :: Ecto.Changeset.t()
   def create_changeset(application, attrs) do
     application
     |> cast(attrs, @create_fields)
     |> validate_required(@create_required)
+    |> validate_length(:full_name, max: 255)
+    |> validate_length(:document_number, max: 50)
     |> validate_number(:requested_amount, greater_than: 0)
     |> validate_number(:monthly_income, greater_than: 0)
     |> validate_inclusion(:country, @valid_countries)
@@ -64,13 +68,16 @@ defmodule Globaltask.CreditApplications.CreditApplication do
   Changeset for updating the status of an existing credit application.
 
   Only casts `status` and validates that the transition is allowed.
+  Uses optimistic locking via `lock_version` to prevent race conditions.
   """
+  @spec update_status_changeset(%__MODULE__{}, map()) :: Ecto.Changeset.t()
   def update_status_changeset(application, attrs) do
     application
     |> cast(attrs, [:status])
     |> validate_required([:status])
     |> validate_inclusion(:status, @valid_statuses)
     |> validate_status_transition()
+    |> optimistic_lock(:lock_version)
   end
 
   defp validate_status_transition(changeset) do
@@ -92,8 +99,15 @@ defmodule Globaltask.CreditApplications.CreditApplication do
     end
   end
 
+  @spec valid_statuses() :: [String.t()]
   def valid_statuses, do: @valid_statuses
+
+  @spec valid_countries() :: [String.t()]
   def valid_countries, do: @valid_countries
+
+  @spec valid_document_types() :: [String.t()]
   def valid_document_types, do: @valid_document_types
+
+  @spec valid_transitions() :: %{String.t() => [String.t()]}
   def valid_transitions, do: @valid_transitions
 end

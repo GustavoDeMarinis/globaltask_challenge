@@ -72,6 +72,11 @@ defmodule GlobaltaskWeb.API.V1.CreditApplicationControllerTest do
       conn = get(conn, ~p"/api/v1/credit_applications/#{Ecto.UUID.generate()}")
       assert json_response(conn, 404)
     end
+
+    test "for malformed UUID returns 404", %{conn: conn} do
+      conn = get(conn, ~p"/api/v1/credit_applications/not-a-uuid")
+      assert json_response(conn, 404)
+    end
   end
 
   # -- GET /api/v1/credit_applications --
@@ -132,6 +137,11 @@ defmodule GlobaltaskWeb.API.V1.CreditApplicationControllerTest do
       assert %{"errors" => _} = json_response(conn, 422)
     end
 
+    test "for malformed UUID returns 404", %{conn: conn} do
+      conn = patch(conn, ~p"/api/v1/credit_applications/not-a-uuid/status", %{"status" => "pending_review"})
+      assert json_response(conn, 404)
+    end
+
     test "response body never contains provider_payload", %{conn: conn} do
       app = create_application()
 
@@ -142,6 +152,16 @@ defmodule GlobaltaskWeb.API.V1.CreditApplicationControllerTest do
       conn_index = get(conn, ~p"/api/v1/credit_applications")
       assert %{"data" => [item | _]} = json_response(conn_index, 200)
       refute Map.has_key?(item, "provider_payload")
+    end
+
+    test "increments lock_version on status update", %{conn: conn} do
+      app = create_application()
+
+      conn = patch(conn, ~p"/api/v1/credit_applications/#{app.id}/status", %{"status" => "pending_review"})
+      assert %{"data" => _} = json_response(conn, 200)
+
+      {:ok, updated} = CreditApplications.get_application(app.id)
+      assert updated.lock_version == app.lock_version + 1
     end
   end
 end

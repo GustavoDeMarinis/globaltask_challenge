@@ -15,6 +15,13 @@ defmodule GlobaltaskWeb.FallbackController do
     |> render(:error, status: 404, message: "Not found")
   end
 
+  def call(conn, {:error, :stale}) do
+    conn
+    |> put_status(:conflict)
+    |> put_view(json: GlobaltaskWeb.ErrorJSON)
+    |> render(:error, status: 409, message: "Resource was modified by another request, please retry")
+  end
+
   def call(conn, {:error, %Ecto.Changeset{} = changeset}) do
     conn
     |> put_status(:unprocessable_entity)

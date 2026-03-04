@@ -8,13 +8,17 @@ defmodule Globaltask.Pagination do
 
   import Ecto.Query
 
-  alias Globaltask.Repo
-
   @default_page_size 20
   @max_page_size 100
 
   @doc """
   Paginates an Ecto query and returns a standardized result map.
+
+  ## Parameters
+
+  - `query` — an Ecto queryable
+  - `repo` — the Ecto repo module to use for executing queries
+  - `params` — a map with optional `"page"` and `"page_size"` keys
 
   ## Options (from `params` map)
 
@@ -25,17 +29,24 @@ defmodule Globaltask.Pagination do
 
       %{data: [%Schema{}, ...], page: 1, page_size: 20, total: 42}
   """
-  def paginate(query, params \\ %{}) do
+  @spec paginate(Ecto.Queryable.t(), module(), map()) :: %{
+          data: [term()],
+          page: pos_integer(),
+          page_size: pos_integer(),
+          total: non_neg_integer()
+        }
+  def paginate(query, repo, params \\ %{}) do
     page = parse_positive_integer(params["page"], 1)
     page_size = params["page_size"] |> parse_positive_integer(@default_page_size) |> min(@max_page_size)
     offset = (page - 1) * page_size
 
-    total = Repo.aggregate(query, :count)
-    data = query |> limit(^page_size) |> offset(^offset) |> Repo.all()
+    total = repo.aggregate(query, :count)
+    data = query |> limit(^page_size) |> offset(^offset) |> repo.all()
 
     %{data: data, page: page, page_size: page_size, total: total}
   end
 
+  @spec parse_positive_integer(term(), pos_integer()) :: pos_integer()
   defp parse_positive_integer(nil, default), do: default
 
   defp parse_positive_integer(value, default) when is_binary(value) do

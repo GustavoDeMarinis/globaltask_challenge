@@ -186,5 +186,15 @@ defmodule Globaltask.CreditApplicationsTest do
       assert {:error, changeset} = CreditApplications.update_status(app, "nonexistent")
       assert %{status: [_ | _]} = errors_on(changeset)
     end
+
+    test "returns {:error, :stale} when record was concurrently modified" do
+      app = create_application()
+
+      # Perform a valid transition to bump lock_version in DB
+      {:ok, _updated} = CreditApplications.update_status(app, "pending_review")
+
+      # Now try to update using the stale `app` struct (lock_version: 0)
+      assert {:error, :stale} = CreditApplications.update_status(app, "rejected")
+    end
   end
 end

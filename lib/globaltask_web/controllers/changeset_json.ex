@@ -12,7 +12,7 @@ defmodule GlobaltaskWeb.ChangesetJSON do
 
   defp translate_error({msg, opts}) do
     Enum.reduce(opts, msg, fn {key, value}, acc ->
-      String.replace(acc, "%{#{key}}", fn _ -> to_string(value) end)
+      String.replace(acc, "%{#{key}}", to_string(value))
     end)
   end
 end

@@ -10,8 +10,6 @@ defmodule Globaltask.CreditApplications do
   alias Globaltask.Repo
   alias Globaltask.CreditApplications.CreditApplication
 
-
-
   @doc """
   Creates a new credit application.
 
@@ -25,6 +23,7 @@ defmodule Globaltask.CreditApplications do
       iex> create_application(%{country: "INVALID"})
       {:error, %Ecto.Changeset{}}
   """
+  @spec create_application(map()) :: {:ok, %CreditApplication{}} | {:error, Ecto.Changeset.t()}
   def create_application(attrs) do
     %CreditApplication{}
     |> CreditApplication.create_changeset(attrs)
@@ -44,6 +43,7 @@ defmodule Globaltask.CreditApplications do
       iex> get_application("not-a-uuid")
       {:error, :not_found}
   """
+  @spec get_application(String.t()) :: {:ok, %CreditApplication{}} | {:error, :not_found}
   def get_application(id) do
     case Ecto.UUID.cast(id) do
       {:ok, uuid} ->
@@ -73,19 +73,26 @@ defmodule Globaltask.CreditApplications do
 
       %{data: [%CreditApplication{}, ...], page: 1, page_size: 20, total: 42}
   """
+  @spec list_applications(map()) :: %{
+          data: [%CreditApplication{}],
+          page: pos_integer(),
+          page_size: pos_integer(),
+          total: non_neg_integer()
+        }
   def list_applications(filters \\ %{}) do
     CreditApplication
     |> filter_by_country(filters)
     |> filter_by_status(filters)
     |> filter_by_date_range(filters)
     |> order_by([c], desc: c.inserted_at)
-    |> Globaltask.Pagination.paginate(filters)
+    |> Globaltask.Pagination.paginate(Repo, filters)
   end
 
   @doc """
   Updates the status of a credit application.
 
   Validates that the transition is allowed by the state machine.
+  Uses optimistic locking to prevent race conditions.
 
   ## Examples
 
@@ -95,10 +102,15 @@ defmodule Globaltask.CreditApplications do
       iex> update_status(app, "approved")  # from "created" — invalid
       {:error, %Ecto.Changeset{}}
   """
+  @spec update_status(%CreditApplication{}, String.t()) ::
+          {:ok, %CreditApplication{}} | {:error, Ecto.Changeset.t() | :stale}
   def update_status(%CreditApplication{} = app, new_status) do
     app
     |> CreditApplication.update_status_changeset(%{status: new_status})
     |> Repo.update()
+  rescue
+    Ecto.StaleEntryError ->
+      {:error, :stale}
   end
 
   # -- Private filters --
@@ -146,5 +158,4 @@ defmodule Globaltask.CreditApplications do
         query
     end
   end
-
 end
