@@ -93,6 +93,7 @@ All API endpoints are versioned under `/api/v1`.
 | `POST` | `/api/v1/credit_applications` | Create a credit application |
 | `GET` | `/api/v1/credit_applications` | List applications (paginated, filterable) |
 | `GET` | `/api/v1/credit_applications/:id` | Get a single application |
+| `PUT` | `/api/v1/credit_applications/:id` | Update application fields (not status/country) |
 | `PATCH` | `/api/v1/credit_applications/:id/status` | Update application status |
 
 **Query params for `GET /api/v1/credit_applications`:**
@@ -105,6 +106,50 @@ make test
 ```
 
 Tests use `Ecto.Adapters.SQL.Sandbox` for isolated, concurrent database access. Oban runs in `:inline` mode during tests.
+
+## Assumptions
+
+- **No authentication yet** — all endpoints are public. JWT auth and role-based authorization are planned for a later issue.
+- **Global state machine** — status transitions (`created → pending_review → approved/rejected`) are the same for all countries. Per-country flows will be introduced with country-specific rules.
+- **Denormalized applicant data** — each application stores name, document type, and document number directly rather than referencing a normalized `applicants` table. This captures a snapshot of the applicant's data at application time.
+- **No provider integration yet** — `provider_payload` exists in the schema but is populated manually. Bank provider integration is planned for a later issue.
+- **Pagination uses count + data queries** — under very high concurrency, the total count and page data may be slightly inconsistent. Acceptable for MVP.
+
+## Data Model
+
+**Table:** `credit_applications`
+
+| Column | Type | Constraints |
+|---|---|---|
+| `id` | `binary_id` (UUID v4) | PK, auto-generated |
+| `country` | `country_code` ENUM | NOT NULL — `ES`, `PT`, `IT`, `MX`, `CO`, `BR` |
+| `full_name` | `string` (max 255) | NOT NULL |
+| `document_type` | `document_type` ENUM | NOT NULL — `DNI`, `CPF`, `CURP`, `NIF`, `CC`, `CodiceFiscale` |
+| `document_number` | `string` (max 50) | NOT NULL |
+| `requested_amount` | `decimal(15,2)` | NOT NULL, > 0 |
+| `monthly_income` | `decimal(15,2)` | NOT NULL, > 0 |
+| `application_date` | `date` | NOT NULL |
+| `status` | `credit_application_status` ENUM | NOT NULL, default `created` — `created`, `pending_review`, `approved`, `rejected` |
+| `provider_payload` | `jsonb` | Default `{}` |
+| `lock_version` | `integer` | Default `0` (optimistic locking) |
+| `inserted_at` | `utc_datetime` | Auto |
+| `updated_at` | `utc_datetime` | Auto |
+
+**Indexes:**
+
+| Index | Columns | Notes |
+|---|---|---|
+| Composite | `(country, status, inserted_at DESC)` | Main query index |
+| Partial unique | `(document_number, country)` WHERE `status != 'rejected'` | Prevents duplicate active applications |
+| Single-column | `country`, `status`, `inserted_at`, `document_number` | Filter/lookup support |
+
+**State transitions:**
+
+```
+created → pending_review → approved
+    ↘                  ↘
+     rejected          rejected
+```
 
 ## Architecture & Design Notes
 
