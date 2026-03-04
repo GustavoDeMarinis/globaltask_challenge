@@ -12,6 +12,14 @@ defmodule GlobaltaskWeb.ErrorJSON do
   #   %{errors: %{detail: "Internal Server Error"}}
   # end
 
+  def error(%{message: message}) when is_binary(message) do
+    %{errors: %{detail: message}}
+  end
+
+  def error(%{status: status}) do
+    %{errors: %{detail: Phoenix.Controller.status_message_from_template("#{status}.json")}}
+  end
+
   # By default, Phoenix returns the status message from
   # the template name. For example, "404.json" becomes
   # "Not Found".

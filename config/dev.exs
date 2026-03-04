@@ -2,13 +2,13 @@ import Config
 
 # Configure your database
 config :globaltask, Globaltask.Repo,
-  username: "globaltask",
-  password: "globaltask",
-  hostname: "localhost",
-  database: "globaltask_dev",
+  username: System.get_env("POSTGRES_USER", "globaltask"),
+  password: System.get_env("POSTGRES_PASSWORD", "globaltask"),
+  hostname: System.get_env("POSTGRES_HOST", "localhost"),
+  database: System.get_env("POSTGRES_DB", "globaltask_dev"),
   stacktrace: true,
   show_sensitive_data_on_connection_error: true,
-  pool_size: 10
+  pool_size: String.to_integer(System.get_env("DB_POOL_SIZE", "10"))
 
 # For development, we disable any cache and enable
 # debugging and code reloading.
@@ -23,7 +23,7 @@ config :globaltask, GlobaltaskWeb.Endpoint,
   check_origin: false,
   code_reloader: true,
   debug_errors: true,
-  secret_key_base: "r0a2GD1tYAaxcHMhGh022ztfPR7va6TY5/P7RCOJA2zNpoBfxmHnUzh2ufQrsHqW",
+  secret_key_base: System.get_env("SECRET_KEY_BASE", "dev-only-secret-key-base-that-is-at-least-64-bytes-long-for-phoenix"),
   watchers: []
 
 # ## SSL Support

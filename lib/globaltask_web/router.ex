@@ -20,10 +20,12 @@ defmodule GlobaltaskWeb.Router do
     get "/", PageController, :home
   end
 
-  # Other scopes may use custom stacks.
-  # scope "/api", GlobaltaskWeb do
-  #   pipe_through :api
-  # end
+  scope "/api/v1", GlobaltaskWeb.API.V1 do
+    pipe_through :api
+
+    resources "/credit_applications", CreditApplicationController, only: [:create, :show, :index, :update]
+    patch "/credit_applications/:id/status", CreditApplicationController, :update_status
+  end
 
   # Enable LiveDashboard in development
   if Application.compile_env(:globaltask, :dev_routes) do

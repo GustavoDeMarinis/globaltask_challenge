@@ -4,15 +4,15 @@ services:
     container_name: globaltask_postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: globaltask
-      POSTGRES_PASSWORD: globaltask
-      POSTGRES_DB: globaltask_dev
+      POSTGRES_USER: ${POSTGRES_USER:-globaltask}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-globaltask}
+      POSTGRES_DB: ${POSTGRES_DB:-globaltask_dev}
     ports:
       - "5432:5432"
     volumes:
       - pg_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U globaltask"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-globaltask}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -28,7 +28,7 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      DATABASE_URL: ecto://globaltask:globaltask@postgres/globaltask_dev
+      DATABASE_URL: ecto://${POSTGRES_USER:-globaltask}:${POSTGRES_PASSWORD:-globaltask}@postgres/${POSTGRES_DB:-globaltask_dev}
       SECRET_KEY_BASE: ${SECRET_KEY_BASE}
       PHX_HOST: localhost
     ports:
