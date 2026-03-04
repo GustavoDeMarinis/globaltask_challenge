@@ -129,7 +129,7 @@ defmodule Globaltask.CreditApplications do
         datetime = DateTime.new!(date, ~T[00:00:00], "Etc/UTC")
         where(query, [c], c.inserted_at >= ^datetime)
 
-      :error ->
+      {:error, _reason} ->
         query
     end
   end
@@ -142,7 +142,7 @@ defmodule Globaltask.CreditApplications do
         datetime = DateTime.new!(date, ~T[23:59:59], "Etc/UTC")
         where(query, [c], c.inserted_at <= ^datetime)
 
-      :error ->
+      {:error, _reason} ->
         query
     end
   end

@@ -84,6 +84,20 @@ lib/
 - **Dev profile** (`docker compose --profile dev`): PostgreSQL only
 - **Full profile** (`docker compose --profile full`): PostgreSQL + Phoenix app (requires Dockerfile build)
 
+## API Endpoints
+
+All API endpoints are versioned under `/api/v1`.
+
+| Method | Path | Description |
+|---|---|---|
+| `POST` | `/api/v1/credit_applications` | Create a credit application |
+| `GET` | `/api/v1/credit_applications` | List applications (paginated, filterable) |
+| `GET` | `/api/v1/credit_applications/:id` | Get a single application |
+| `PATCH` | `/api/v1/credit_applications/:id/status` | Update application status |
+
+**Query params for `GET /api/v1/credit_applications`:**
+`country`, `status`, `date_from`, `date_to`, `page`, `page_size` (max 100)
+
 ## Running Tests
 
 ```bash
@@ -91,3 +105,25 @@ make test
 ```
 
 Tests use `Ecto.Adapters.SQL.Sandbox` for isolated, concurrent database access. Oban runs in `:inline` mode during tests.
+
+## Architecture & Design Notes
+
+### `application_date` vs `inserted_at`
+
+`application_date` is an explicit `:date` field representing when the applicant submitted their request. `inserted_at` tracks when the record was persisted in the database. These are kept separate because they can differ in scenarios like batch imports, manual entry, or timezone edge cases.
+
+### Pagination Consistency
+
+The `list_applications` endpoint runs two separate queries: one for `count` and one for `data`. Under very high concurrency, these may yield slightly inconsistent results (e.g., a record inserted between the two queries). This is acceptable for the current MVP. The production evolution is either a single-query approach using `count(*) OVER()` or keyset/cursor pagination.
+
+### PostgreSQL ENUMs
+
+`status`, `document_type`, and `country` use PostgreSQL ENUM types instead of CHECK constraints. ENUMs can be extended non-destructively with `ALTER TYPE ... ADD VALUE`, which means adding a new country or status requires a simple migration without altering existing constraints or data.
+
+### Partial Unique Index
+
+The unique constraint on `(document_number, country)` is partial: `WHERE status != 'rejected'`. This prevents duplicate *active* applications per person per country while allowing re-application after rejection — a standard fintech flow.
+
+### Denormalized Application Data
+
+Each credit application stores the applicant's document data (name, document type, document number) directly in the record rather than referencing a normalized `applicants` table. This is intentional: in fintech, each application should capture a snapshot of the applicant's data at the time of application. A normalized `applicants` entity is the natural evolution when authentication is introduced in a later issue.
