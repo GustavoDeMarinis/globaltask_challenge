@@ -60,6 +60,18 @@ defmodule Globaltask.CountryRules do
   """
   @callback on_status_change(app :: map(), new_status :: String.t()) :: :ok | {:error, term()}
 
+  @doc """
+  Evaluates risk based on bank provider data stored in `provider_payload`.
+
+  Called by `RiskEvaluationWorker` after provider data is fetched.
+  Returns an atom instructing the worker what status transition to apply.
+
+  Default implementation returns `:skip` (no provider-based rules).
+  Override in country modules to add threshold-based decisions.
+  """
+  @callback evaluate_risk(app :: %Globaltask.CreditApplications.CreditApplication{}) ::
+              :approve | :reject | :review | :skip
+
   defmacro __using__(_opts) do
     quote do
       @behaviour Globaltask.CountryRules
@@ -67,7 +79,10 @@ defmodule Globaltask.CountryRules do
       @impl Globaltask.CountryRules
       def on_status_change(_app, _new_status), do: :ok
 
-      defoverridable on_status_change: 2
+      @impl Globaltask.CountryRules
+      def evaluate_risk(_app), do: :skip
+
+      defoverridable on_status_change: 2, evaluate_risk: 1
     end
   end
 

@@ -32,3 +32,9 @@ config :phoenix_live_view,
 
 # Run Oban jobs synchronously during tests (no actual workers)
 config :globaltask, Oban, testing: :inline
+
+# Skip simulated bank provider latency in tests
+config :globaltask, skip_provider_latency: true
+
+# Don't start PgListener in tests (no real PG NOTIFY needed)
+config :globaltask, start_pg_listener: false

@@ -5,6 +5,10 @@ defmodule Globaltask.CountryRules.IT do
   - **Document:** Codice Fiscale — 16 alphanumeric characters matching
     `^[A-Z]{6}\\d{2}[A-Z]\\d{2}[A-Z]\\d{3}[A-Z]$`.
   - **Business rule:** `monthly_income >= 800`. Reject if below.
+  - **Risk evaluation:** Based on `financial_stability` from bank provider:
+    - "stable" → approve
+    - "moderate" → review
+    - "at_risk" → reject
   """
 
   use Globaltask.CountryRules
@@ -52,4 +56,20 @@ defmodule Globaltask.CountryRules.IT do
         end
     end
   end
+
+  # -- Risk evaluation --
+
+  @impl true
+  @spec evaluate_risk(%Globaltask.CreditApplications.CreditApplication{}) ::
+          :approve | :reject | :review | :skip
+  def evaluate_risk(%{provider_payload: %{"financial_stability" => stability}}) do
+    case stability do
+      "stable" -> :approve
+      "moderate" -> :review
+      "at_risk" -> :reject
+      _ -> :reject
+    end
+  end
+
+  def evaluate_risk(_app), do: :skip
 end

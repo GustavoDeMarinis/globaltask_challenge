@@ -7,17 +7,22 @@ defmodule Globaltask.Application do
 
   @impl true
   def start(_type, _args) do
-    children = [
-      Globaltask.Repo,
-      {Oban, Application.fetch_env!(:globaltask, Oban)},
-      GlobaltaskWeb.Telemetry,
-      {DNSCluster, query: Application.get_env(:globaltask, :dns_cluster_query) || :ignore},
-      {Phoenix.PubSub, name: Globaltask.PubSub},
-      # Start a worker by calling: Globaltask.Worker.start_link(arg)
-      # {Globaltask.Worker, arg},
-      # Start to serve requests, typically the last entry
-      GlobaltaskWeb.Endpoint
-    ]
+    children =
+      [
+        Globaltask.Repo,
+        {Oban, Application.fetch_env!(:globaltask, Oban)},
+        GlobaltaskWeb.Telemetry,
+        {DNSCluster, query: Application.get_env(:globaltask, :dns_cluster_query) || :ignore},
+        {Phoenix.PubSub, name: Globaltask.PubSub},
+        # PG NOTIFY listener — enqueues Oban jobs when new applications are created.
+        # Skipped in test env (tests use Oban inline mode, no real PG notifications).
+        if(Application.get_env(:globaltask, :start_pg_listener, true),
+          do: Globaltask.PgListener
+        ),
+        # Start to serve requests, typically the last entry
+        GlobaltaskWeb.Endpoint
+      ]
+      |> Enum.reject(&is_nil/1)
 
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options

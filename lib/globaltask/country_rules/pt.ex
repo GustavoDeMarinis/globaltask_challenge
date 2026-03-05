@@ -4,6 +4,10 @@ defmodule Globaltask.CountryRules.PT do
 
   - **Document:** NIF — 9 digits with a check digit (weighted sum mod 11).
   - **Business rule:** `requested_amount <= 4 × monthly_income`. Reject if exceeded.
+  - **Risk evaluation:** Based on `risk_class` from bank provider:
+    - "A" → approve
+    - "B" → review
+    - "C" → reject
   """
 
   use Globaltask.CountryRules
