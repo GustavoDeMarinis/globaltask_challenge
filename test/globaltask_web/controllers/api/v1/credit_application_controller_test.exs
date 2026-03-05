@@ -132,7 +132,9 @@ defmodule GlobaltaskWeb.API.V1.CreditApplicationControllerTest do
 
     test "with invalid transition returns 422", %{conn: conn} do
       app = create_application()
-      conn = patch(conn, ~p"/api/v1/credit_applications/#{app.id}/status", %{"status" => "approved"})
+      {:ok, app} = CreditApplications.update_status(app, "approved") # "approved" allows no transitions
+
+      conn = patch(conn, ~p"/api/v1/credit_applications/#{app.id}/status", %{"status" => "rejected"})
 
       assert %{"errors" => _} = json_response(conn, 422)
     end

@@ -15,7 +15,7 @@ defmodule Globaltask.CreditApplications.CreditApplication do
   @valid_document_types ~w(DNI CPF CURP NIF CC CodiceFiscale)
 
   @valid_transitions %{
-    "created" => ~w(pending_review rejected),
+    "created" => ~w(pending_review rejected approved),
     "pending_review" => ~w(approved rejected),
     "approved" => [],
     "rejected" => []
