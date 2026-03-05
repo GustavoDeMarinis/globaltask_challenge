@@ -137,9 +137,10 @@ defmodule Globaltask.CreditApplicationsTest do
     test "with date_from and date_to returns only matching records" do
       create_application(%{"document_number" => "23456789D"})
 
+      # Filters now operate on application_date (business date), not inserted_at
       result = CreditApplications.list_applications(%{
-        "date_from" => Date.to_iso8601(Date.utc_today()),
-        "date_to" => Date.to_iso8601(Date.utc_today())
+        "date_from" => "2026-03-03",
+        "date_to" => "2026-03-03"
       })
 
       assert result.total == 1
@@ -309,6 +310,79 @@ defmodule Globaltask.CreditApplicationsTest do
                CreditApplications.update_application(app, %{"document_number" => "23456789D"})
 
       assert updated.document_number == "23456789D"
+    end
+  end
+
+  # -- Architect Review Edge Case Tests --
+
+  describe "architect review fixes" do
+    test "ES update with amount > 50k does NOT regress status" do
+      app = create_application()
+      {:ok, approved_app} = CreditApplications.update_status(app, "pending_review")
+      {:ok, approved_app} = CreditApplications.update_status(approved_app, "approved")
+
+      # Update requested_amount to > 50k on an already-approved application
+      assert {:ok, updated} =
+               CreditApplications.update_application(approved_app, %{"requested_amount" => 60_000})
+
+      # Status must NOT regress to pending_review
+      assert updated.status == "approved"
+    end
+
+    test "document_type change on update is silently ignored (immutable)" do
+      app = create_application()
+
+      assert {:ok, updated} =
+               CreditApplications.update_application(app, %{"document_type" => "CPF"})
+
+      # document_type should remain DNI (not cast on update)
+      assert updated.document_type == "DNI"
+    end
+
+    test "monthly_income below 100 is rejected" do
+      attrs = %{@valid_attrs | "monthly_income" => 50}
+      assert {:error, changeset} = CreditApplications.create_application(attrs)
+      assert %{monthly_income: [_ | _]} = errors_on(changeset)
+    end
+
+    test "application_date before 2020 is rejected" do
+      attrs = %{@valid_attrs | "application_date" => "2019-12-31", "document_number" => "23456789D"}
+      assert {:error, changeset} = CreditApplications.create_application(attrs)
+      assert %{application_date: [_ | _]} = errors_on(changeset)
+    end
+
+    test "application_date far in the future is rejected" do
+      future = Date.utc_today() |> Date.add(60) |> Date.to_iso8601()
+      attrs = %{@valid_attrs | "application_date" => future, "document_number" => "23456789D"}
+      assert {:error, changeset} = CreditApplications.create_application(attrs)
+      assert %{application_date: [_ | _]} = errors_on(changeset)
+    end
+
+    test "document_number is trimmed and persisted without whitespace" do
+      attrs = %{@valid_attrs | "document_number" => "  12345678Z  "}
+      assert {:ok, app} = CreditApplications.create_application(attrs)
+      assert app.document_number == "12345678Z"
+    end
+
+    test "approved application allows new application from same person" do
+      app = create_application()
+      {:ok, app} = CreditApplications.update_status(app, "pending_review")
+      {:ok, _approved} = CreditApplications.update_status(app, "approved")
+
+      # New application with same document should succeed
+      assert {:ok, new_app} =
+               CreditApplications.create_application(%{@valid_attrs | "requested_amount" => 8000})
+
+      assert new_app.status == "created"
+    end
+
+    test "update_status returns {:error, :stale} on concurrent modification" do
+      app = create_application()
+      # Simulate concurrent modification
+      {:ok, _} = CreditApplications.update_status(app, "pending_review")
+
+      # Now try to update using the stale `app` struct (lock_version: 0)
+      assert {:error, :stale} = CreditApplications.update_status(app, "rejected")
     end
   end
 end

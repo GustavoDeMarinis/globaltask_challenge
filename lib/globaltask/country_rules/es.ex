@@ -45,7 +45,9 @@ defmodule Globaltask.CountryRules.ES do
         changeset
 
       amount ->
-        if Decimal.gt?(amount, @review_threshold) do
+        if Decimal.gt?(amount, @review_threshold) and is_nil(changeset.data.id) do
+          # Only force status on CREATE flow. On updates, the state machine
+          # governs transitions — we don't regress an approved app.
           force_change(changeset, :status, "pending_review")
         else
           changeset
