@@ -24,7 +24,7 @@ config :globaltask, GlobaltaskWeb.Endpoint,
 
 config :globaltask, Oban,
   repo: Globaltask.Repo,
-  queues: [default: 10],
+  queues: [default: 10, provider_fetch: 10, risk_evaluation: 5],
   plugins: [
     Oban.Plugins.Pruner,
     {Oban.Plugins.Lifeline, rescue_after: :timer.minutes(30)}
