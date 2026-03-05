@@ -138,6 +138,27 @@ defmodule Globaltask.CreditApplications do
   end
 
   @doc """
+  Updates the `provider_payload` field on a credit application.
+
+  This is a dedicated write path used by `FetchProviderDataWorker` — it
+  bypasses the normal update changeset to avoid triggering country
+  validations or requiring other fields.
+
+  Uses optimistic locking to prevent concurrent overwrites.
+  """
+  @spec update_provider_payload(%CreditApplication{}, map()) ::
+          {:ok, %CreditApplication{}} | {:error, Ecto.Changeset.t() | :stale}
+  def update_provider_payload(%CreditApplication{} = app, payload) when is_map(payload) do
+    app
+    |> Ecto.Changeset.change(provider_payload: payload)
+    |> Ecto.Changeset.optimistic_lock(:lock_version)
+    |> Repo.update()
+  rescue
+    Ecto.StaleEntryError ->
+      {:error, :stale}
+  end
+
+  @doc """
   Updates the status of a credit application.
 
   Validates that the transition is allowed by the state machine.
