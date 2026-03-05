@@ -15,19 +15,19 @@ defmodule GlobaltaskWeb.API.V1.CreditApplicationController do
     with {:ok, app} <- CreditApplications.create_application(params) do
       conn
       |> put_status(:created)
-      |> render(:show, credit_application: app)
+      |> render(:show, credit_application: app, role: conn.assigns[:role])
     end
   end
 
   def show(conn, %{"id" => id}) do
     with {:ok, app} <- CreditApplications.get_application(id) do
-      render(conn, :show, credit_application: app)
+      render(conn, :show, credit_application: app, role: conn.assigns[:role])
     end
   end
 
   def index(conn, params) do
     result = CreditApplications.list_applications(params)
-    render(conn, :index, result: result)
+    render(conn, :index, result: result, role: conn.assigns[:role])
   end
 
   def update(conn, %{"id" => id} = params) do
@@ -35,14 +35,14 @@ defmodule GlobaltaskWeb.API.V1.CreditApplicationController do
 
     with {:ok, app} <- CreditApplications.get_application(id),
          {:ok, updated_app} <- CreditApplications.update_application(app, attrs) do
-      render(conn, :show, credit_application: updated_app)
+      render(conn, :show, credit_application: updated_app, role: conn.assigns[:role])
     end
   end
 
   def update_status(conn, %{"id" => id, "status" => status}) do
     with {:ok, app} <- CreditApplications.get_application(id),
          {:ok, updated_app} <- CreditApplications.update_status(app, status) do
-      render(conn, :show, credit_application: updated_app)
+      render(conn, :show, credit_application: updated_app, role: conn.assigns[:role])
     end
   end
 

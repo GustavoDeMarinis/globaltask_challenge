@@ -18,6 +18,12 @@ defmodule GlobaltaskWeb.API.V1.CreditApplicationControllerTest do
     app
   end
 
+  setup %{conn: conn} do
+    token = GlobaltaskWeb.Token.sign!(%{"role" => "admin"})
+    conn = put_req_header(conn, "authorization", "Bearer #{token}")
+    {:ok, conn: conn}
+  end
+
   # -- POST /api/v1/credit_applications --
 
   describe "POST /api/v1/credit_applications" do
@@ -144,16 +150,23 @@ defmodule GlobaltaskWeb.API.V1.CreditApplicationControllerTest do
       assert json_response(conn, 404)
     end
 
-    test "response body never contains provider_payload", %{conn: conn} do
+    test "response body hides provider_payload for client role", %{conn: conn} do
       app = create_application()
+
+      token = GlobaltaskWeb.Token.sign!(%{"role" => "client"})
+      conn = put_req_header(conn, "authorization", "Bearer #{token}")
 
       conn_show = get(conn, ~p"/api/v1/credit_applications/#{app.id}")
       assert %{"data" => data} = json_response(conn_show, 200)
       refute Map.has_key?(data, "provider_payload")
+    end
+
+    test "index endpoint is forbidden for client role", %{conn: conn} do
+      token = GlobaltaskWeb.Token.sign!(%{"role" => "client"})
+      conn = put_req_header(conn, "authorization", "Bearer #{token}")
 
       conn_index = get(conn, ~p"/api/v1/credit_applications")
-      assert %{"data" => [item | _]} = json_response(conn_index, 200)
-      refute Map.has_key?(item, "provider_payload")
+      assert json_response(conn_index, 403)
     end
 
     test "increments lock_version on status update", %{conn: conn} do

@@ -16,6 +16,12 @@ defmodule Globaltask.AsyncIntegrationTest do
     "application_date" => "2026-03-03"
   }
 
+  setup %{conn: conn} do
+    token = GlobaltaskWeb.Token.sign!(%{"role" => "admin"})
+    conn = put_req_header(conn, "authorization", "Bearer #{token}")
+    {:ok, conn: conn}
+  end
+
   describe "Full Async Lifecycle" do
     test "create -> PG Trigger -> PgListener -> FetchWorker -> RiskWorker -> Approved", %{conn: conn} do
       # Since PgListener runs asynchronously, and Oban might run asynchronously, we use manual testing

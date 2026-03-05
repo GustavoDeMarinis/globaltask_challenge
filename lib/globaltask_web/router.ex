@@ -14,17 +14,44 @@ defmodule GlobaltaskWeb.Router do
     plug :accepts, ["json"]
   end
 
+  pipeline :api_auth do
+    plug GlobaltaskWeb.Plugs.Auth
+  end
+
+  pipeline :admin_only do
+    plug GlobaltaskWeb.Plugs.RequireRole, ["admin"]
+  end
+
+  pipeline :client_or_admin do
+    plug GlobaltaskWeb.Plugs.RequireRole, ["admin", "client"]
+  end
+
   scope "/", GlobaltaskWeb do
     pipe_through :browser
 
     get "/", PageController, :home
   end
 
-  scope "/api/v1", GlobaltaskWeb.API.V1 do
+  scope "/api/v1/auth", GlobaltaskWeb do
     pipe_through :api
 
-    resources "/credit_applications", CreditApplicationController, only: [:create, :show, :index, :update]
-    patch "/credit_applications/:id/status", CreditApplicationController, :update_status
+    post "/token", AuthController, :token
+  end
+
+  scope "/api/v1/credit_applications", GlobaltaskWeb.API.V1 do
+    pipe_through [:api, :api_auth, :client_or_admin]
+
+    post "/", CreditApplicationController, :create
+    get "/:id", CreditApplicationController, :show
+    put "/:id", CreditApplicationController, :update
+    patch "/:id", CreditApplicationController, :update
+  end
+
+  scope "/api/v1/credit_applications", GlobaltaskWeb.API.V1 do
+    pipe_through [:api, :api_auth, :admin_only]
+
+    get "/", CreditApplicationController, :index
+    patch "/:id/status", CreditApplicationController, :update_status
   end
 
   # Enable LiveDashboard in development

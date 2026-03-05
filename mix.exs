@@ -56,6 +56,8 @@ defmodule Globaltask.MixProject do
       {:oban, "~> 2.17"},
       {:cachex, "~> 3.6"},
       {:logger_json, "~> 5.0"},
+      {:joken, "~> 2.6"},
+      {:req, "~> 0.4"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev], runtime: false}
     ]
