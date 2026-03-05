@@ -70,6 +70,15 @@ See `.env.example` for the full list. Key variables:
 lib/
 ├── globaltask/          # Domain layer (contexts, schemas, business logic)
 │   ├── application.ex   # OTP supervision tree
+│   ├── country_rules.ex # Country rules behaviour & dispatcher
+│   ├── country_rules/   # Country-specific validation modules
+│   │   ├── es.ex        # Spain (DNI)
+│   │   ├── pt.ex        # Portugal (NIF)
+│   │   ├── it.ex        # Italy (Codice Fiscale)
+│   │   ├── mx.ex        # Mexico (CURP)
+│   │   ├── co.ex        # Colombia (CC)
+│   │   └── br.ex        # Brazil (CPF)
+│   ├── credit_applications/  # Credit application context
 │   └── repo.ex          # Ecto repository
 └── globaltask_web/      # Web layer (controllers, views, channels)
     ├── controllers/     # HTTP request handlers
@@ -110,7 +119,8 @@ Tests use `Ecto.Adapters.SQL.Sandbox` for isolated, concurrent database access. 
 ## Assumptions
 
 - **No authentication yet** — all endpoints are public. JWT auth and role-based authorization are planned for a later issue.
-- **Global state machine** — status transitions (`created → pending_review → approved/rejected`) are the same for all countries. Per-country flows will be introduced with country-specific rules.
+- **Global state machine** — status transitions (`created → pending_review → approved/rejected`) are the same for all countries. Country-specific rules validate documents and enforce business thresholds but do not alter the transition graph.
+- **Country dictates document type** — each country maps to exactly one required document type (e.g., ES → DNI, BR → CPF). The country field determines which validation rules apply.
 - **Denormalized applicant data** — each application stores name, document type, and document number directly rather than referencing a normalized `applicants` table. This captures a snapshot of the applicant's data at application time.
 - **No provider integration yet** — `provider_payload` exists in the schema but is populated manually. Bank provider integration is planned for a later issue.
 - **Pagination uses count + data queries** — under very high concurrency, the total count and page data may be slightly inconsistent. Acceptable for MVP.
@@ -172,3 +182,34 @@ The unique constraint on `(document_number, country)` is partial: `WHERE status 
 ### Denormalized Application Data
 
 Each credit application stores the applicant's document data (name, document type, document number) directly in the record rather than referencing a normalized `applicants` table. This is intentional: in fintech, each application should capture a snapshot of the applicant's data at the time of application. A normalized `applicants` entity is the natural evolution when authentication is introduced in a later issue.
+
+### Country-Specific Validation Rules
+
+Country rules implement a **strategy pattern** using Elixir behaviours. Each country module lives in `lib/globaltask/country_rules/` and implements the `Globaltask.CountryRules` behaviour:
+
+| Country | Document Type | Document Validation | Business Rule |
+|---|---|---|---|
+| 🇪🇸 ES | DNI | 8 digits + control letter (mod 23) | Amount > €50,000 → auto `pending_review` |
+| 🇵🇹 PT | NIF | 9 digits + weighted check digit (mod 11) | Amount ≤ 4× monthly income |
+| 🇮🇹 IT | CodiceFiscale | 16-char alphanumeric regex | Minimum income ≥ €800 |
+| 🇲🇽 MX | CURP | 18-char format with gender marker | Amount ≤ 3× monthly income |
+| 🇨🇴 CO | CC | 6–10 digits | Pass-through (deferred to Issue #4) |
+| 🇧🇷 BR | CPF | 11 digits + two check digits (mod 11) | Amount ≤ 5× monthly income |
+
+**Architecture:**
+
+```
+CountryRules (behaviour)           Country Modules
+├── resolve/1  (dispatcher)   ──►  ES, PT, IT, MX, CO, BR
+├── validate/1 (orchestrator)      Each implements:
+│   ├── validate_document_type     ├── required_document_type/0
+│   ├── module.validate_document   ├── validate_document/1
+│   └── module.validate_business   ├── validate_business_rules/1
+└── on_status_change/2 hook        └── on_status_change/2 (overridable)
+```
+
+**Adding a new country** requires only:
+
+1. Create `lib/globaltask/country_rules/<code>.ex` implementing the behaviour
+2. Add the mapping to `@country_modules` in `lib/globaltask/country_rules.ex`
+3. Add the country code to the PostgreSQL `country_code` ENUM via migration
