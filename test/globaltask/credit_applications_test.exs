@@ -232,4 +232,83 @@ defmodule Globaltask.CreditApplicationsTest do
       assert {:error, :stale} = CreditApplications.update_status(app, "rejected")
     end
   end
+
+  # -- Country Rules Integration --
+
+  describe "create_application/1 country rules integration" do
+    test "ES with invalid DNI returns changeset error on :document_number" do
+      attrs = %{@valid_attrs | "document_number" => "00000000X"}
+
+      assert {:error, changeset} = CreditApplications.create_application(attrs)
+      assert %{document_number: [msg]} = errors_on(changeset)
+      assert msg =~ "invalid DNI"
+    end
+
+    test "ES with wrong document_type returns changeset error on :document_type" do
+      attrs = %{@valid_attrs | "document_type" => "CPF"}
+
+      assert {:error, changeset} = CreditApplications.create_application(attrs)
+      assert %{document_type: [_ | _]} = errors_on(changeset)
+    end
+
+    test "ES with amount > 50k sets status to pending_review" do
+      attrs = %{@valid_attrs | "requested_amount" => 60_000}
+
+      assert {:ok, app} = CreditApplications.create_application(attrs)
+      assert app.status == "pending_review"
+    end
+
+    test "PT with amount > 4× income returns changeset error on :requested_amount" do
+      attrs = %{
+        "country" => "PT",
+        "full_name" => "João Silva",
+        "document_type" => "NIF",
+        "document_number" => "123456789",
+        "requested_amount" => 15_000,
+        "monthly_income" => 3000,
+        "application_date" => "2026-03-04"
+      }
+
+      assert {:error, changeset} = CreditApplications.create_application(attrs)
+      assert %{requested_amount: [msg]} = errors_on(changeset)
+      assert msg =~ "4"
+    end
+
+    test "BR with valid CPF and valid income ratio succeeds" do
+      attrs = %{
+        "country" => "BR",
+        "full_name" => "Maria Oliveira",
+        "document_type" => "CPF",
+        "document_number" => "52998224725",
+        "requested_amount" => 10_000,
+        "monthly_income" => 5000,
+        "application_date" => "2026-03-04"
+      }
+
+      assert {:ok, app} = CreditApplications.create_application(attrs)
+      assert app.country == "BR"
+      assert app.document_type == "CPF"
+      assert app.status == "created"
+    end
+  end
+
+  describe "update_application/2 country rules integration" do
+    test "with invalid document_number returns changeset error" do
+      app = create_application()
+
+      assert {:error, changeset} =
+               CreditApplications.update_application(app, %{"document_number" => "INVALID"})
+
+      assert %{document_number: [_]} = errors_on(changeset)
+    end
+
+    test "with valid document_number update succeeds" do
+      app = create_application()
+
+      assert {:ok, updated} =
+               CreditApplications.update_application(app, %{"document_number" => "23456789D"})
+
+      assert updated.document_number == "23456789D"
+    end
+  end
 end
