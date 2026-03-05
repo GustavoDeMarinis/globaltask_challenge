@@ -5,6 +5,10 @@ defmodule Globaltask.CountryRules.MX do
   - **Document:** CURP — 18 characters matching
     `^[A-Z]{4}\\d{6}[HM][A-Z]{5}[A-Z0-9]\\d$`.
   - **Business rule:** `requested_amount <= 3 × monthly_income`. Reject if exceeded.
+  - **Risk evaluation:** Based on `buro_score` from bank provider:
+    - ≥ 650 → approve
+    - 500–649 → review
+    - < 500 → reject
   """
 
   use Globaltask.CountryRules
@@ -54,4 +58,19 @@ defmodule Globaltask.CountryRules.MX do
         changeset
     end
   end
+
+  # -- Risk evaluation --
+
+  @impl true
+  @spec evaluate_risk(%Globaltask.CreditApplications.CreditApplication{}) ::
+          :approve | :reject | :review | :skip
+  def evaluate_risk(%{provider_payload: %{"buro_score" => score}}) do
+    cond do
+      score >= 650 -> :approve
+      score >= 500 -> :review
+      true -> :reject
+    end
+  end
+
+  def evaluate_risk(_app), do: :skip
 end

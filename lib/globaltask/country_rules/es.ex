@@ -8,6 +8,10 @@ defmodule Globaltask.CountryRules.ES do
     flagged for additional review by forcing the status to `"pending_review"`.
     This uses `Ecto.Changeset.force_change/3` — see `Globaltask.CountryRules`
     moduledoc for rationale.
+  - **Risk evaluation:** Based on `credit_score` from bank provider:
+    - ≥ 700 → approve
+    - 600–699 → review
+    - < 600 → reject
   """
 
   use Globaltask.CountryRules
@@ -16,6 +20,9 @@ defmodule Globaltask.CountryRules.ES do
 
   @dni_control_letters "TRWAGMYFPDXBNJZSQVHLCKE"
   @review_threshold Decimal.new("50000")
+
+  @approve_threshold 700
+  @review_min 600
 
   @impl true
   @spec required_document_type() :: String.t()
@@ -54,6 +61,21 @@ defmodule Globaltask.CountryRules.ES do
         end
     end
   end
+
+  # -- Risk evaluation --
+
+  @impl true
+  @spec evaluate_risk(%Globaltask.CreditApplications.CreditApplication{}) ::
+          :approve | :reject | :review | :skip
+  def evaluate_risk(%{provider_payload: %{"credit_score" => score}}) do
+    cond do
+      score >= @approve_threshold -> :approve
+      score >= @review_min -> :review
+      true -> :reject
+    end
+  end
+
+  def evaluate_risk(_app), do: :skip
 
   # -- Private helpers --
 

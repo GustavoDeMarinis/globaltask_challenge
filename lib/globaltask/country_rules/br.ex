@@ -6,7 +6,10 @@ defmodule Globaltask.CountryRules.BR do
     Rejects all-same-digit CPFs (e.g. `11111111111`) which pass the algorithm
     but are invalid in practice.
   - **Business rule:** `requested_amount <= 5 × monthly_income` (capacity).
-    Credit score validation deferred to Issue #4 with bank provider data.
+  - **Risk evaluation:** Based on `serasa_score` from bank provider:
+    - ≥ 600 → approve
+    - 400–599 → review
+    - < 400 → reject
   """
 
   use Globaltask.CountryRules
@@ -87,4 +90,19 @@ defmodule Globaltask.CountryRules.BR do
 
     Enum.at(digits, position) == expected
   end
+
+  # -- Risk evaluation --
+
+  @impl true
+  @spec evaluate_risk(%Globaltask.CreditApplications.CreditApplication{}) ::
+          :approve | :reject | :review | :skip
+  def evaluate_risk(%{provider_payload: %{"serasa_score" => score}}) do
+    cond do
+      score >= 600 -> :approve
+      score >= 400 -> :review
+      true -> :reject
+    end
+  end
+
+  def evaluate_risk(_app), do: :skip
 end
