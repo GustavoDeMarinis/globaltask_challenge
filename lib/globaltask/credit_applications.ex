@@ -138,24 +138,56 @@ defmodule Globaltask.CreditApplications do
   end
 
   @doc """
-  Updates the `provider_payload` field on a credit application.
-
-  This is a dedicated write path used by `FetchProviderDataWorker` — it
-  bypasses the normal update changeset to avoid triggering country
-  validations or requiring other fields.
-
-  Uses optimistic locking to prevent concurrent overwrites.
+  Atomically updates the `provider_payload` field and enqueues a `RiskEvaluationWorker` job.
+  Uses `Ecto.Multi` to prevent "Limbo State" if the node crashes between DB write and Oban insert.
   """
-  @spec update_provider_payload(%CreditApplication{}, map()) ::
-          {:ok, %CreditApplication{}} | {:error, Ecto.Changeset.t() | :stale}
-  def update_provider_payload(%CreditApplication{} = app, payload) when is_map(payload) do
-    app
-    |> Ecto.Changeset.change(provider_payload: payload)
-    |> Ecto.Changeset.optimistic_lock(:lock_version)
-    |> Repo.update()
+  @spec update_provider_payload_and_enqueue_risk(%CreditApplication{}, map()) ::
+          {:ok, %CreditApplication{}} | {:error, term()}
+  def update_provider_payload_and_enqueue_risk(%CreditApplication{} = app, payload) when is_map(payload) do
+    Multi.new()
+    |> Multi.update(:update_payload, CreditApplication.provider_payload_changeset(app, payload))
+    |> Oban.insert(:enqueue_risk_check, Globaltask.Workers.RiskEvaluationWorker.new(%{"application_id" => app.id}))
+    |> Repo.transaction()
+    |> case do
+      {:ok, %{update_payload: updated_app}} ->
+        {:ok, updated_app}
+      {:error, _failed_op, failed_value, _changes} ->
+        # Ecto.StaleEntryError comes as an exception during repo run if not caught natively,
+        # but Ecto.Multi handles optimistic lock failures internally as changeset errors.
+        {:error, failed_value}
+    end
   rescue
     Ecto.StaleEntryError ->
       {:error, :stale}
+  end
+
+  @doc """
+  Increments `fetch_attempts` and enqueues another fetch job. Used by cron recovery.
+  """
+  def enqueue_fetch_and_increment_attempts(%CreditApplication{} = app) do
+    Multi.new()
+    |> Multi.update(:increment, CreditApplication.increment_fetch_attempts_changeset(app))
+    |> Oban.insert(:enqueue_fetch, Globaltask.Workers.FetchProviderDataWorker.new(%{"application_id" => app.id}))
+    |> Repo.transaction()
+    |> case do
+      {:ok, %{increment: updated_app}} -> {:ok, updated_app}
+      {:error, _op, failed_value, _} -> {:error, failed_value}
+    end
+  rescue
+    Ecto.StaleEntryError ->
+      {:error, :stale}
+  end
+
+  @doc """
+  Finds applications in created status with empty payloads that are stuck.
+  """
+  def list_recoverable_applications(minutes_ago \\ 2) do
+    threshold = DateTime.utc_now() |> DateTime.add(-minutes_ago, :minute)
+
+    CreditApplication
+    |> where([a], a.status == "created" and a.provider_payload == ^%{})
+    |> where([a], a.inserted_at < ^threshold)
+    |> Repo.all()
   end
 
   @doc """

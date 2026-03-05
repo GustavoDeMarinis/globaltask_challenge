@@ -10,15 +10,16 @@ defmodule Globaltask.CreditApplications.CreditApplication do
   use Ecto.Schema
   import Ecto.Changeset
 
-  @valid_statuses ~w(created pending_review approved rejected)
+  @valid_statuses ~w(created pending_review approved rejected provider_timeout)
   @valid_countries ~w(ES PT IT MX CO BR)
   @valid_document_types ~w(DNI CPF CURP NIF CC CodiceFiscale)
 
   @valid_transitions %{
-    "created" => ~w(pending_review rejected approved),
+    "created" => ~w(pending_review rejected approved provider_timeout),
     "pending_review" => ~w(approved rejected),
     "approved" => [],
-    "rejected" => []
+    "rejected" => [],
+    "provider_timeout" => []
   }
 
   @primary_key {:id, :binary_id, autogenerate: true}
@@ -33,6 +34,7 @@ defmodule Globaltask.CreditApplications.CreditApplication do
     field :application_date, :date
     field :status, :string, default: "created"
     field :provider_payload, :map, default: %{}
+    field :fetch_attempts, :integer, default: 0
     field :lock_version, :integer, default: 0
 
     timestamps(type: :utc_datetime)
@@ -124,6 +126,29 @@ defmodule Globaltask.CreditApplications.CreditApplication do
     |> validate_required([:status])
     |> validate_inclusion(:status, @valid_statuses)
     |> validate_status_transition()
+    |> optimistic_lock(:lock_version)
+  end
+
+  @doc """
+  Changeset specifically for the Oban worker incrementing fetch_attempts.
+  """
+  @spec increment_fetch_attempts_changeset(%__MODULE__{}) :: Ecto.Changeset.t()
+  def increment_fetch_attempts_changeset(application) do
+    application
+    |> change()
+    |> force_change(:fetch_attempts, application.fetch_attempts + 1)
+    |> optimistic_lock(:lock_version)
+  end
+
+  @doc """
+  Changeset specifically for the Oban worker to blindly update the provider payload.
+  Does NOT transition the status. Used in an Ecto.Multi operation.
+  """
+  @spec provider_payload_changeset(%__MODULE__{}, map()) :: Ecto.Changeset.t()
+  def provider_payload_changeset(application, payload) do
+    application
+    |> change()
+    |> put_change(:provider_payload, payload)
     |> optimistic_lock(:lock_version)
   end
 

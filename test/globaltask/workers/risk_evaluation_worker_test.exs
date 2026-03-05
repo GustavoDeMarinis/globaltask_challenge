@@ -21,7 +21,7 @@ defmodule Globaltask.Workers.RiskEvaluationWorkerTest do
   end
 
   defp with_payload(app, payload) do
-    {:ok, updated} = CreditApplications.update_provider_payload(app, payload)
+    {:ok, updated} = CreditApplications.update_provider_payload_and_enqueue_risk(app, payload)
     updated
   end
 

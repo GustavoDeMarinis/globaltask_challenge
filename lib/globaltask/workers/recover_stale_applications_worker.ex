@@ -14,37 +14,29 @@ defmodule Globaltask.Workers.RecoverStaleApplicationsWorker do
 
   require Logger
 
-  alias Globaltask.Repo
-  alias Globaltask.CreditApplications.CreditApplication
-  import Ecto.Query
-
   @impl Oban.Worker
   def perform(_job) do
-    two_minutes_ago = DateTime.utc_now() |> DateTime.add(-2, :minute)
-
     # Find stuck applications
-    query =
-      from a in CreditApplication,
-        where: a.status == "created" and a.provider_payload == ^%{},
-        where: a.inserted_at < ^two_minutes_ago,
-        select: a.id
+    stale_apps = Globaltask.CreditApplications.list_recoverable_applications()
 
-    stale_ids = Repo.all(query)
-
-    if Enum.any?(stale_ids) do
-      Logger.warning("Found #{length(stale_ids)} stale applications, enqueuing recovery jobs",
+    if Enum.any?(stale_apps) do
+      Logger.warning("Found #{length(stale_apps)} stale applications, processing recovery",
         worker: "RecoverStaleApplicationsWorker",
-        stale_count: length(stale_ids)
+        stale_count: length(stale_apps)
       )
 
-      # Enqueue fetch jobs using Oban.insert_all for efficiency
-      jobs =
-        Enum.map(stale_ids, fn id ->
-          %{"application_id" => id}
-          |> Globaltask.Workers.FetchProviderDataWorker.new()
-        end)
+      Enum.each(stale_apps, fn app ->
+        if app.fetch_attempts >= 3 do
+          Logger.error("Application exceeded max fetch attempts, marking as provider_timeout",
+            application_id: app.id,
+            worker: "RecoverStaleApplicationsWorker"
+          )
 
-      Oban.insert_all(jobs)
+          Globaltask.CreditApplications.update_status(app, "provider_timeout")
+        else
+          Globaltask.CreditApplications.enqueue_fetch_and_increment_attempts(app)
+        end
+      end)
     else
       Logger.debug("No stale applications found", worker: "RecoverStaleApplicationsWorker")
     end

@@ -123,6 +123,15 @@ Globaltask features a robust asynchronous pipeline to fetch data from local bank
 4. **RiskEvaluationWorker**: Evaluates the fetched payload using country-specific thresholds and automatically transitions the application's status to `approved`, `rejected` or `pending_review`.
 5. **Recovery Cron**: A cron worker periodically runs to catch any missed applications in the rare event of `PgListener` downtime.
 
+### Distributed Concurrency & Deduplication
+Because the system utilizes `pg_notify` via PostgreSQL triggers, a cluster running multiple application pods will result in every pod receiving the notification event simultaneously. To prevent duplicate provider API calls, the background jobs rely on Oban's `unique:` configurations (`period: 60, states: [:available, :scheduled, :executing]`). This leverages database locks to guarantee that only one worker is ever enqueued for a specific credit application, avoiding race conditions and redundant API calls.
+
+### Scalability Considerations (PgListener)
+Currently, a single `GenServer` (`PgListener`) handles incoming PostgreSQL notifications. While this is sufficient for moderate loads, extreme throughput (>1,000 req/sec) could overwhelm the single process inbox. Future scalability improvements could involve replacing the single listener with a dispatcher pool (e.g. `NimblePool`) or bypassing the listener entirely by having the API controllers perform batched `Oban.insert_all` directly.
+
+### Observability & Telemetry
+The async pipeline relies exclusively on decoupled background processes. Standard web APM monitoring will not capture the end-to-end duration of a credit decision. To monitor health and latency, the system should dispatch `:telemetry` events at key lifecycle transitions (e.g. `[:globaltask, :application, :created]` and `[:globaltask, :application, :evaluated]`). Alerting tools can consume these spans to monitor P99 evaluation delays and pipeline queue backpressure.
+
 ## Assumptions
 
 - **No authentication yet** — all endpoints are public. JWT auth and role-based authorization are planned for a later issue.

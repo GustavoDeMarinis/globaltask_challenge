@@ -20,7 +20,10 @@ defmodule Globaltask.Workers.FetchProviderDataWorker do
   automatically by Oban with backoff.
   """
 
-  use Oban.Worker, queue: :provider_fetch, max_attempts: 3
+  use Oban.Worker,
+    queue: :provider_fetch,
+    max_attempts: 3,
+    unique: [period: 60, states: [:available, :scheduled, :executing]]
 
   require Logger
 
@@ -59,21 +62,31 @@ defmodule Globaltask.Workers.FetchProviderDataWorker do
       {:ok, payload} ->
         duration_ms = System.monotonic_time(:millisecond) - started_at
 
-        {:ok, _updated} = CreditApplications.update_provider_payload(app, payload)
+        case CreditApplications.update_provider_payload_and_enqueue_risk(app, payload) do
+          {:ok, _updated} ->
+            Logger.info("Provider data fetched successfully",
+              application_id: app.id,
+              country: app.country,
+              worker: "FetchProviderDataWorker",
+              duration_ms: duration_ms
+            )
+            :ok
 
-        Logger.info("Provider data fetched successfully",
-          application_id: app.id,
-          country: app.country,
-          worker: "FetchProviderDataWorker",
-          duration_ms: duration_ms
-        )
+          {:error, :stale} ->
+            Logger.warning("Stale entry when updating provider data",
+              application_id: app.id,
+              worker: "FetchProviderDataWorker"
+            )
+            {:error, :stale}
 
-        # Chain to risk evaluation
-        %{"application_id" => app.id}
-        |> Globaltask.Workers.RiskEvaluationWorker.new()
-        |> Oban.insert()
-
-        :ok
+          {:error, reason} ->
+            Logger.error("Error saving provider data",
+              application_id: app.id,
+              worker: "FetchProviderDataWorker",
+              reason: inspect(reason)
+            )
+            {:error, reason}
+        end
 
       {:error, reason} ->
         Logger.error("Provider fetch failed",

@@ -39,7 +39,7 @@ defmodule Globaltask.Workers.FetchProviderDataWorkerTest do
 
     test "is idempotent: skips fetch if payload is already present" do
       app = create_application()
-      {:ok, app} = CreditApplications.update_provider_payload(app, %{"credit_score" => 999})
+      {:ok, app} = CreditApplications.update_provider_payload_and_enqueue_risk(app, %{"credit_score" => 999})
 
       assert :ok = perform_job(FetchProviderDataWorker, %{"application_id" => app.id})
 
