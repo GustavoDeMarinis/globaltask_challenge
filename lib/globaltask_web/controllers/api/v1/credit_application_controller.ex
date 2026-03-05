@@ -31,8 +31,10 @@ defmodule GlobaltaskWeb.API.V1.CreditApplicationController do
   end
 
   def update(conn, %{"id" => id} = params) do
+    attrs = Map.drop(params, ["id"])
+
     with {:ok, app} <- CreditApplications.get_application(id),
-         {:ok, updated_app} <- CreditApplications.update_application(app, params) do
+         {:ok, updated_app} <- CreditApplications.update_application(app, attrs) do
       render(conn, :show, credit_application: updated_app)
     end
   end

@@ -1,12 +1,37 @@
 defmodule Globaltask.CreditApplications do
   @moduledoc """
-  Context for managing credit applications.
+  Context for managing credit applications across multiple countries.
 
-  Provides CRUD operations with pagination, filtering, and status transitions.
+  This is the core domain module and the primary boundary for all credit
+  application operations. Controllers call into this module; it enforces
+  business rules, delegates to `Globaltask.CountryRules` for per-country
+  validations, and interacts with the database via `Repo`.
+
+  ## Responsibilities
+
+  - **Create** — validates input, applies country rules, inserts with default
+    status `"created"`.
+  - **Read** — single-record lookup by UUID, paginated listing with country /
+    status / date filters.
+  - **Update** — field-level updates with optimistic locking. `status` and
+    `country` are immutable through this path.
+  - **Status transitions** — enforces a global state machine
+    (`created → pending_review → approved/rejected`) with optimistic locking.
+    After a successful transition, the country's `on_status_change/2` hook
+    is called inside the same transaction (rolls back on hook failure).
+
+  ## Design decisions
+
+  - All operations return `{:ok, struct}` or `{:error, reason}` tuples.
+  - Optimistic locking via `lock_version` prevents silent overwrites under
+    concurrent access.
+  - Date filters operate on `application_date` (the business date), not
+    `inserted_at` (the DB timestamp).
   """
 
   import Ecto.Query
 
+  alias Ecto.Multi
   alias Globaltask.Repo
   alias Globaltask.CreditApplications.CreditApplication
 
@@ -118,6 +143,10 @@ defmodule Globaltask.CreditApplications do
   Validates that the transition is allowed by the state machine.
   Uses optimistic locking to prevent race conditions.
 
+  After a successful update, calls `on_status_change/2` on the country's
+  rules module, allowing country-specific side-effects on transitions
+  (e.g. re-validation before approval, audit logging).
+
   ## Examples
 
       iex> update_status(app, "pending_review")  # from "created"
@@ -127,11 +156,30 @@ defmodule Globaltask.CreditApplications do
       {:error, %Ecto.Changeset{}}
   """
   @spec update_status(%CreditApplication{}, String.t()) ::
-          {:ok, %CreditApplication{}} | {:error, Ecto.Changeset.t() | :stale}
+          {:ok, %CreditApplication{}} | {:error, Ecto.Changeset.t() | :stale | term()}
   def update_status(%CreditApplication{} = app, new_status) do
-    app
-    |> CreditApplication.update_status_changeset(%{status: new_status})
-    |> Repo.update()
+    Multi.new()
+    |> Multi.update(:status_change,
+      CreditApplication.update_status_changeset(app, %{status: new_status})
+    )
+    |> Multi.run(:country_hook, fn _repo, %{status_change: updated_app} ->
+      case Globaltask.CountryRules.resolve(updated_app.country) do
+        {:ok, module} ->
+          case module.on_status_change(updated_app, new_status) do
+            :ok -> {:ok, :hook_completed}
+            {:error, reason} -> {:error, reason}
+          end
+
+        {:error, _} ->
+          {:ok, :no_hook}
+      end
+    end)
+    |> Repo.transaction()
+    |> case do
+      {:ok, %{status_change: updated_app}} -> {:ok, updated_app}
+      {:error, :status_change, changeset, _} -> {:error, changeset}
+      {:error, :country_hook, reason, _} -> {:error, reason}
+    end
   rescue
     Ecto.StaleEntryError ->
       {:error, :stale}
@@ -162,8 +210,7 @@ defmodule Globaltask.CreditApplications do
   defp maybe_filter_date_from(query, date_string) when is_binary(date_string) do
     case Date.from_iso8601(date_string) do
       {:ok, date} ->
-        datetime = DateTime.new!(date, ~T[00:00:00], "Etc/UTC")
-        where(query, [c], c.inserted_at >= ^datetime)
+        where(query, [c], c.application_date >= ^date)
 
       {:error, _reason} ->
         query
@@ -175,8 +222,7 @@ defmodule Globaltask.CreditApplications do
   defp maybe_filter_date_to(query, date_string) when is_binary(date_string) do
     case Date.from_iso8601(date_string) do
       {:ok, date} ->
-        datetime = DateTime.new!(date, ~T[23:59:59], "Etc/UTC")
-        where(query, [c], c.inserted_at <= ^datetime)
+        where(query, [c], c.application_date <= ^date)
 
       {:error, _reason} ->
         query

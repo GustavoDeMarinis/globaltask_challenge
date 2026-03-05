@@ -83,8 +83,8 @@ defmodule GlobaltaskWeb.API.V1.CreditApplicationControllerTest do
 
   describe "GET /api/v1/credit_applications" do
     test "with no filters returns list with meta", %{conn: conn} do
-      create_application(%{"document_number" => "IDX001"})
-      create_application(%{"document_number" => "IDX002"})
+      create_application(%{"document_number" => "23456789D"})
+      create_application(%{"document_number" => "34567890V"})
 
       conn = get(conn, ~p"/api/v1/credit_applications")
 
@@ -95,8 +95,8 @@ defmodule GlobaltaskWeb.API.V1.CreditApplicationControllerTest do
     end
 
     test "with country filter returns filtered list", %{conn: conn} do
-      create_application(%{"country" => "ES", "document_number" => "FLT001"})
-      create_application(%{"country" => "BR", "document_number" => "FLT002", "document_type" => "CPF"})
+      create_application(%{"country" => "ES", "document_number" => "23456789D"})
+      create_application(%{"country" => "BR", "document_number" => "52998224725", "document_type" => "CPF"})
 
       conn = get(conn, ~p"/api/v1/credit_applications?country=ES")
 
@@ -107,7 +107,7 @@ defmodule GlobaltaskWeb.API.V1.CreditApplicationControllerTest do
 
     test "with page and page_size returns correct page", %{conn: conn} do
       for i <- 1..5 do
-        create_application(%{"document_number" => "PAG#{String.pad_leading("#{i}", 3, "0")}"})
+        create_application(%{"document_number" => "#{10000000 + i}#{String.at("TRWAGMYFPDXBNJZSQVHLCKE", rem(10000000 + i, 23))}"})
       end
 
       conn = get(conn, ~p"/api/v1/credit_applications?page=2&page_size=2")
@@ -192,6 +192,71 @@ defmodule GlobaltaskWeb.API.V1.CreditApplicationControllerTest do
     test "for unknown id returns 404", %{conn: conn} do
       conn = put(conn, ~p"/api/v1/credit_applications/#{Ecto.UUID.generate()}", %{"full_name" => "Test"})
       assert json_response(conn, 404)
+    end
+  end
+
+  # -- Country Rules Integration (HTTP level) --
+
+  describe "POST /api/v1/credit_applications country rules" do
+    test "ES with invalid DNI returns 422 with document_number error", %{conn: conn} do
+      attrs = %{@valid_attrs | "document_number" => "00000000X"}
+      conn = post(conn, ~p"/api/v1/credit_applications", attrs)
+
+      assert %{"errors" => errors} = json_response(conn, 422)
+      assert errors["document_number"]
+    end
+
+    test "ES with amount > 50k creates with pending_review status", %{conn: conn} do
+      attrs = %{@valid_attrs | "requested_amount" => 60_000}
+      conn = post(conn, ~p"/api/v1/credit_applications", attrs)
+
+      assert %{"data" => data} = json_response(conn, 201)
+      assert data["status"] == "pending_review"
+    end
+
+    test "BR with valid CPF and valid ratio returns 201", %{conn: conn} do
+      attrs = %{
+        "country" => "BR",
+        "full_name" => "Maria Oliveira",
+        "document_type" => "CPF",
+        "document_number" => "52998224725",
+        "requested_amount" => 10_000,
+        "monthly_income" => 5000,
+        "application_date" => "2026-03-04"
+      }
+
+      conn = post(conn, ~p"/api/v1/credit_applications", attrs)
+
+      assert %{"data" => data} = json_response(conn, 201)
+      assert data["country"] == "BR"
+      assert data["status"] == "created"
+    end
+
+    test "PT with amount > 4× income returns 422", %{conn: conn} do
+      attrs = %{
+        "country" => "PT",
+        "full_name" => "João Silva",
+        "document_type" => "NIF",
+        "document_number" => "123456789",
+        "requested_amount" => 15_000,
+        "monthly_income" => 3000,
+        "application_date" => "2026-03-04"
+      }
+
+      conn = post(conn, ~p"/api/v1/credit_applications", attrs)
+
+      assert %{"errors" => errors} = json_response(conn, 422)
+      assert errors["requested_amount"]
+    end
+  end
+
+  describe "PUT /api/v1/credit_applications/:id country rules" do
+    test "with invalid document_number returns 422", %{conn: conn} do
+      app = create_application()
+      conn = put(conn, ~p"/api/v1/credit_applications/#{app.id}", %{"document_number" => "INVALID"})
+
+      assert %{"errors" => errors} = json_response(conn, 422)
+      assert errors["document_number"]
     end
   end
 end

@@ -47,13 +47,13 @@ defmodule Globaltask.CreditApplicationsTest do
     test "with invalid document_type returns {:error, changeset}" do
       attrs = Map.put(@valid_attrs, "document_type", "PASSPORT")
       assert {:error, changeset} = CreditApplications.create_application(attrs)
-      assert %{document_type: [_]} = errors_on(changeset)
+      assert %{document_type: [_ | _]} = errors_on(changeset)
     end
 
     test "with invalid country returns {:error, changeset}" do
       attrs = Map.put(@valid_attrs, "country", "XX")
       assert {:error, changeset} = CreditApplications.create_application(attrs)
-      assert %{country: [_]} = errors_on(changeset)
+      assert %{country: [_ | _]} = errors_on(changeset)
     end
 
     test "ignores caller-supplied status (always defaults to 'created')" do
@@ -105,8 +105,8 @@ defmodule Globaltask.CreditApplicationsTest do
 
   describe "list_applications/1" do
     test "with no filters returns all records with pagination metadata" do
-      create_application(%{"document_number" => "AAA111"})
-      create_application(%{"document_number" => "BBB222"})
+      create_application(%{"document_number" => "23456789D"})
+      create_application(%{"document_number" => "34567890V"})
 
       result = CreditApplications.list_applications()
       assert result.total == 2
@@ -116,8 +116,8 @@ defmodule Globaltask.CreditApplicationsTest do
     end
 
     test "with country filter returns only matching records" do
-      create_application(%{"country" => "ES", "document_number" => "ES001"})
-      create_application(%{"country" => "BR", "document_number" => "BR001", "document_type" => "CPF"})
+      create_application(%{"country" => "ES", "document_number" => "23456789D"})
+      create_application(%{"country" => "BR", "document_number" => "52998224725", "document_type" => "CPF"})
 
       result = CreditApplications.list_applications(%{"country" => "ES"})
       assert result.total == 1
@@ -125,8 +125,8 @@ defmodule Globaltask.CreditApplicationsTest do
     end
 
     test "with status filter returns only matching records" do
-      app = create_application(%{"document_number" => "ST001"})
-      create_application(%{"document_number" => "ST002"})
+      app = create_application(%{"document_number" => "23456789D"})
+      create_application(%{"document_number" => "34567890V"})
       {:ok, _} = CreditApplications.update_status(app, "pending_review")
 
       result = CreditApplications.list_applications(%{"status" => "pending_review"})
@@ -135,11 +135,12 @@ defmodule Globaltask.CreditApplicationsTest do
     end
 
     test "with date_from and date_to returns only matching records" do
-      create_application(%{"document_number" => "DT001"})
+      create_application(%{"document_number" => "23456789D"})
 
+      # Filters now operate on application_date (business date), not inserted_at
       result = CreditApplications.list_applications(%{
-        "date_from" => Date.to_iso8601(Date.utc_today()),
-        "date_to" => Date.to_iso8601(Date.utc_today())
+        "date_from" => "2026-03-03",
+        "date_to" => "2026-03-03"
       })
 
       assert result.total == 1
@@ -147,7 +148,7 @@ defmodule Globaltask.CreditApplicationsTest do
 
     test "with page and page_size returns correct slice and total" do
       for i <- 1..5 do
-        create_application(%{"document_number" => "PG#{String.pad_leading("#{i}", 3, "0")}"})
+        create_application(%{"document_number" => "#{10000000 + i}#{String.at("TRWAGMYFPDXBNJZSQVHLCKE", rem(10000000 + i, 23))}"})
       end
 
       result = CreditApplications.list_applications(%{"page" => 2, "page_size" => 2})
@@ -227,6 +228,158 @@ defmodule Globaltask.CreditApplicationsTest do
 
       # Perform a valid transition to bump lock_version in DB
       {:ok, _updated} = CreditApplications.update_status(app, "pending_review")
+
+      # Now try to update using the stale `app` struct (lock_version: 0)
+      assert {:error, :stale} = CreditApplications.update_status(app, "rejected")
+    end
+  end
+
+  # -- Country Rules Integration --
+
+  describe "create_application/1 country rules integration" do
+    test "ES with invalid DNI returns changeset error on :document_number" do
+      attrs = %{@valid_attrs | "document_number" => "00000000X"}
+
+      assert {:error, changeset} = CreditApplications.create_application(attrs)
+      assert %{document_number: [msg]} = errors_on(changeset)
+      assert msg =~ "invalid DNI"
+    end
+
+    test "ES with wrong document_type returns changeset error on :document_type" do
+      attrs = %{@valid_attrs | "document_type" => "CPF"}
+
+      assert {:error, changeset} = CreditApplications.create_application(attrs)
+      assert %{document_type: [_ | _]} = errors_on(changeset)
+    end
+
+    test "ES with amount > 50k sets status to pending_review" do
+      attrs = %{@valid_attrs | "requested_amount" => 60_000}
+
+      assert {:ok, app} = CreditApplications.create_application(attrs)
+      assert app.status == "pending_review"
+    end
+
+    test "PT with amount > 4× income returns changeset error on :requested_amount" do
+      attrs = %{
+        "country" => "PT",
+        "full_name" => "João Silva",
+        "document_type" => "NIF",
+        "document_number" => "123456789",
+        "requested_amount" => 15_000,
+        "monthly_income" => 3000,
+        "application_date" => "2026-03-04"
+      }
+
+      assert {:error, changeset} = CreditApplications.create_application(attrs)
+      assert %{requested_amount: [msg]} = errors_on(changeset)
+      assert msg =~ "4"
+    end
+
+    test "BR with valid CPF and valid income ratio succeeds" do
+      attrs = %{
+        "country" => "BR",
+        "full_name" => "Maria Oliveira",
+        "document_type" => "CPF",
+        "document_number" => "52998224725",
+        "requested_amount" => 10_000,
+        "monthly_income" => 5000,
+        "application_date" => "2026-03-04"
+      }
+
+      assert {:ok, app} = CreditApplications.create_application(attrs)
+      assert app.country == "BR"
+      assert app.document_type == "CPF"
+      assert app.status == "created"
+    end
+  end
+
+  describe "update_application/2 country rules integration" do
+    test "with invalid document_number returns changeset error" do
+      app = create_application()
+
+      assert {:error, changeset} =
+               CreditApplications.update_application(app, %{"document_number" => "INVALID"})
+
+      assert %{document_number: [_]} = errors_on(changeset)
+    end
+
+    test "with valid document_number update succeeds" do
+      app = create_application()
+
+      assert {:ok, updated} =
+               CreditApplications.update_application(app, %{"document_number" => "23456789D"})
+
+      assert updated.document_number == "23456789D"
+    end
+  end
+
+  # -- Architect Review Edge Case Tests --
+
+  describe "architect review fixes" do
+    test "ES update with amount > 50k does NOT regress status" do
+      app = create_application()
+      {:ok, approved_app} = CreditApplications.update_status(app, "pending_review")
+      {:ok, approved_app} = CreditApplications.update_status(approved_app, "approved")
+
+      # Update requested_amount to > 50k on an already-approved application
+      assert {:ok, updated} =
+               CreditApplications.update_application(approved_app, %{"requested_amount" => 60_000})
+
+      # Status must NOT regress to pending_review
+      assert updated.status == "approved"
+    end
+
+    test "document_type change on update is silently ignored (immutable)" do
+      app = create_application()
+
+      assert {:ok, updated} =
+               CreditApplications.update_application(app, %{"document_type" => "CPF"})
+
+      # document_type should remain DNI (not cast on update)
+      assert updated.document_type == "DNI"
+    end
+
+    test "monthly_income below 100 is rejected" do
+      attrs = %{@valid_attrs | "monthly_income" => 50}
+      assert {:error, changeset} = CreditApplications.create_application(attrs)
+      assert %{monthly_income: [_ | _]} = errors_on(changeset)
+    end
+
+    test "application_date before 2020 is rejected" do
+      attrs = %{@valid_attrs | "application_date" => "2019-12-31", "document_number" => "23456789D"}
+      assert {:error, changeset} = CreditApplications.create_application(attrs)
+      assert %{application_date: [_ | _]} = errors_on(changeset)
+    end
+
+    test "application_date far in the future is rejected" do
+      future = Date.utc_today() |> Date.add(60) |> Date.to_iso8601()
+      attrs = %{@valid_attrs | "application_date" => future, "document_number" => "23456789D"}
+      assert {:error, changeset} = CreditApplications.create_application(attrs)
+      assert %{application_date: [_ | _]} = errors_on(changeset)
+    end
+
+    test "document_number is trimmed and persisted without whitespace" do
+      attrs = %{@valid_attrs | "document_number" => "  12345678Z  "}
+      assert {:ok, app} = CreditApplications.create_application(attrs)
+      assert app.document_number == "12345678Z"
+    end
+
+    test "approved application allows new application from same person" do
+      app = create_application()
+      {:ok, app} = CreditApplications.update_status(app, "pending_review")
+      {:ok, _approved} = CreditApplications.update_status(app, "approved")
+
+      # New application with same document should succeed
+      assert {:ok, new_app} =
+               CreditApplications.create_application(%{@valid_attrs | "requested_amount" => 8000})
+
+      assert new_app.status == "created"
+    end
+
+    test "update_status returns {:error, :stale} on concurrent modification" do
+      app = create_application()
+      # Simulate concurrent modification
+      {:ok, _} = CreditApplications.update_status(app, "pending_review")
 
       # Now try to update using the stale `app` struct (lock_version: 0)
       assert {:error, :stale} = CreditApplications.update_status(app, "rejected")

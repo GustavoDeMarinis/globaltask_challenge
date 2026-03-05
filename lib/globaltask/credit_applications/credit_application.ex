@@ -41,47 +41,69 @@ defmodule Globaltask.CreditApplications.CreditApplication do
   @create_fields ~w(country full_name document_type document_number requested_amount monthly_income application_date provider_payload)a
   @create_required ~w(country full_name document_type document_number requested_amount monthly_income application_date)a
 
+  # Minimum monthly income accepted (fintech floor to prevent trivially small values
+  # from passing income-ratio rules).
+  @min_monthly_income Decimal.new("100")
+
   @doc """
   Changeset for creating a new credit application.
 
   Does NOT cast `status` — it always defaults to `"created"`.
   This prevents callers from setting an arbitrary status on creation.
+
+  Country-specific validations (document format, business rules) are applied
+  via `Globaltask.CountryRules.validate/1` after basic field checks.
+
+  `document_number` is trimmed on cast to avoid whitespace-only differences
+  breaking the partial unique index.
   """
   @spec create_changeset(%__MODULE__{}, map()) :: Ecto.Changeset.t()
   def create_changeset(application, attrs) do
     application
     |> cast(attrs, @create_fields)
     |> validate_required(@create_required)
+    |> trim_document_number()
     |> validate_length(:full_name, max: 255)
     |> validate_length(:document_number, max: 50)
     |> validate_number(:requested_amount, greater_than: 0)
-    |> validate_number(:monthly_income, greater_than: 0)
+    |> validate_number(:monthly_income, greater_than_or_equal_to: @min_monthly_income)
+    |> validate_application_date()
     |> validate_inclusion(:country, @valid_countries)
     |> validate_inclusion(:document_type, @valid_document_types)
+    |> Globaltask.CountryRules.validate()
     |> unique_constraint([:document_number, :country],
       name: :credit_applications_document_number_country_active_index,
       message: "an active application already exists for this document in this country"
     )
   end
 
-  @update_fields ~w(full_name document_type document_number requested_amount monthly_income application_date provider_payload)a
+  # `document_type` and `country` are intentionally excluded — they are
+  # immutable after creation to preserve the audit trail.
+  @update_fields ~w(full_name document_number requested_amount monthly_income application_date provider_payload)a
 
   @doc """
   Changeset for updating an existing credit application's fields.
 
-  Does NOT cast `status` or `country` — status changes go through
-  `update_status_changeset/2`, and country is immutable after creation.
+  Does NOT cast `status`, `country`, or `document_type` — status changes go
+  through `update_status_changeset/2`, and country + document_type are
+  immutable after creation to preserve the audit trail.
+
   Uses optimistic locking via `lock_version`.
+
+  Country-specific validations are re-applied on update to ensure
+  consistency if document or financial fields change.
   """
   @spec update_changeset(%__MODULE__{}, map()) :: Ecto.Changeset.t()
   def update_changeset(application, attrs) do
     application
     |> cast(attrs, @update_fields)
+    |> trim_document_number()
     |> validate_length(:full_name, max: 255)
     |> validate_length(:document_number, max: 50)
     |> validate_number(:requested_amount, greater_than: 0)
-    |> validate_number(:monthly_income, greater_than: 0)
-    |> validate_inclusion(:document_type, @valid_document_types)
+    |> validate_number(:monthly_income, greater_than_or_equal_to: @min_monthly_income)
+    |> validate_application_date()
+    |> Globaltask.CountryRules.validate()
     |> unique_constraint([:document_number, :country],
       name: :credit_applications_document_number_country_active_index,
       message: "an active application already exists for this document in this country"
@@ -135,4 +157,44 @@ defmodule Globaltask.CreditApplications.CreditApplication do
 
   @spec valid_transitions() :: %{String.t() => [String.t()]}
   def valid_transitions, do: @valid_transitions
+
+  # -- Private helpers --
+
+  # Trims whitespace from document_number on cast so the persisted value
+  # matches what country modules validate against.
+  defp trim_document_number(changeset) do
+    case get_change(changeset, :document_number) do
+      nil -> changeset
+      value -> put_change(changeset, :document_number, String.trim(value))
+    end
+  end
+
+  # Validates application_date is within a reasonable fintech range:
+  # - Not before 2020-01-01 (system inception)
+  # - Not more than 30 days in the future (prevents backdating abuse and
+  #   catches stale form submissions)
+  defp validate_application_date(changeset) do
+    case get_change(changeset, :application_date) do
+      nil ->
+        changeset
+
+      date ->
+        today = Date.utc_today()
+        min_date = ~D[2020-01-01]
+        max_date = Date.add(today, 30)
+
+        cond do
+          Date.before?(date, min_date) ->
+            add_error(changeset, :application_date, "cannot be before %{min_date}",
+              min_date: Date.to_iso8601(min_date)
+            )
+
+          Date.after?(date, max_date) ->
+            add_error(changeset, :application_date, "cannot be more than 30 days in the future")
+
+          true ->
+            changeset
+        end
+    end
+  end
 end

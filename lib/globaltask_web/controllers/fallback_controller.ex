@@ -28,4 +28,16 @@ defmodule GlobaltaskWeb.FallbackController do
     |> put_view(json: GlobaltaskWeb.ChangesetJSON)
     |> render(:error, changeset: changeset)
   end
+
+  # Catch-all for unexpected error tuples (e.g. from country hooks).
+  # Logs the error and returns a generic 500 to avoid leaking internals.
+  def call(conn, {:error, reason}) do
+    require Logger
+    Logger.error("Unhandled error in FallbackController: #{inspect(reason)}")
+
+    conn
+    |> put_status(:internal_server_error)
+    |> put_view(json: GlobaltaskWeb.ErrorJSON)
+    |> render(:error, status: 500, message: "Internal server error")
+  end
 end
