@@ -24,9 +24,9 @@ config :globaltask, GlobaltaskWeb.Endpoint,
 
 config :globaltask, Oban,
   repo: Globaltask.Repo,
-  queues: [default: 10, provider_fetch: 10, risk_evaluation: 5],
+  queues: [default: 10, provider_fetch: 10, risk_evaluation: 5, webhooks: 5],
   plugins: [
-    Oban.Plugins.Pruner,
+    {Oban.Plugins.Pruner, max_age: 60 * 60 * 24 * 7}, # Retain jobs for 7 days
     {Oban.Plugins.Lifeline, rescue_after: :timer.minutes(30)},
     {Oban.Plugins.Cron,
      crontab: [

@@ -8,9 +8,9 @@ defmodule GlobaltaskWeb.API.V1.CreditApplicationJSON do
 
   alias Globaltask.CreditApplications.CreditApplication
 
-  def index(%{result: %{data: data, page: page, page_size: page_size, total: total}}) do
+  def index(%{result: %{data: data, page: page, page_size: page_size, total: total}, role: role}) do
     %{
-      data: Enum.map(data, &data/1),
+      data: Enum.map(data, &data(&1, role)),
       meta: %{
         page: page,
         page_size: page_size,
@@ -19,12 +19,12 @@ defmodule GlobaltaskWeb.API.V1.CreditApplicationJSON do
     }
   end
 
-  def show(%{credit_application: app}) do
-    %{data: data(app)}
+  def show(%{credit_application: app, role: role}) do
+    %{data: data(app, role)}
   end
 
-  def data(%CreditApplication{} = app) do
-    %{
+  def data(%CreditApplication{} = app, role) do
+    base = %{
       id: app.id,
       country: app.country,
       full_name: app.full_name,
@@ -37,5 +37,11 @@ defmodule GlobaltaskWeb.API.V1.CreditApplicationJSON do
       inserted_at: app.inserted_at,
       updated_at: app.updated_at
     }
+
+    if role == "admin" do
+      Map.put(base, :provider_payload, app.provider_payload)
+    else
+      base
+    end
   end
 end

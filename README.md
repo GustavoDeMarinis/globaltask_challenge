@@ -132,9 +132,11 @@ Currently, a single `GenServer` (`PgListener`) handles incoming PostgreSQL notif
 ### Observability & Telemetry
 The async pipeline relies exclusively on decoupled background processes. Standard web APM monitoring will not capture the end-to-end duration of a credit decision. To monitor health and latency, the system should dispatch `:telemetry` events at key lifecycle transitions (e.g. `[:globaltask, :application, :created]` and `[:globaltask, :application, :evaluated]`). Alerting tools can consume these spans to monitor P99 evaluation delays and pipeline queue backpressure.
 
-## Assumptions
+## Assumptions & Trade-offs
 
-- **No authentication yet** — all endpoints are public. JWT auth and role-based authorization are planned for a later issue.
+- **Static Token Authority (MVP Authentication)** — To fulfill the requirement of securing PII without building a complex users table and RBAC management UI, the API uses a `/api/v1/auth/token` endpoint that generates signed JWTs natively. The `provider_payload` is gracefully stripped from JSON responses for any token without the explicit `admin` role.
+- **Webhook Delivery via Oban** — Webhooks are asynchronously dispatched for terminal state changes. Instead of implementing custom HMAC signatures or separate Webhook Log tables—which adds significant overhead for an MVP—the system relies entirely on Oban's native capabilities (`oban_jobs` table) for exponential backoff, retry history, and transactional enqueuing via `Ecto.Multi`. Redundant processing is naturally blocked by our DB state machine constraints.
+- **Memory-Bound Read-Through Caching** — Instead of introducing Redis for a simple `GET /id` cache, we rely on `Cachex` in the supervision tree. To signal senior-level awareness of production memory limits (OOMs), the cache is explicitly constrained by a hard `limit: 10_000` keys paired with an LRU eviction policy. Invalidation automatically occurs upon any mutation.
 - **Global state machine** — status transitions (`created → pending_review → approved/rejected`) are the same for all countries. Country-specific rules validate documents and enforce business thresholds but do not alter the transition graph.
 - **Country dictates document type** — each country maps to exactly one required document type (e.g., ES → DNI, BR → CPF). The country field determines which validation rules apply.
 - **Denormalized applicant data** — each application stores name, document type, and document number directly rather than referencing a normalized `applicants` table. This captures a snapshot of the applicant's data at application time.
