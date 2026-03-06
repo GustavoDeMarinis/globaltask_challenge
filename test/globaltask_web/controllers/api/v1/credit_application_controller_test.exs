@@ -274,4 +274,19 @@ defmodule GlobaltaskWeb.API.V1.CreditApplicationControllerTest do
       assert errors["document_number"]
     end
   end
+
+  # -- Authentication --
+
+  describe "Authentication" do
+    test "returns 401 Unauthorized when missing Authorization header", %{conn: conn} do
+      # Remove the token injected by the setup block
+      conn = delete_req_header(conn, "authorization")
+
+      conn_get = get(conn, ~p"/api/v1/credit_applications")
+      assert %{"errors" => %{"detail" => "Unauthorized"}} = json_response(conn_get, 401)
+
+      conn_post = post(conn, ~p"/api/v1/credit_applications", @valid_attrs)
+      assert %{"errors" => %{"detail" => "Unauthorized"}} = json_response(conn_post, 401)
+    end
+  end
 end

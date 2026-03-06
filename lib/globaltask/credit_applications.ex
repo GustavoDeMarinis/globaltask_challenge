@@ -72,6 +72,12 @@ defmodule Globaltask.CreditApplications do
   def get_application(id) do
     case Ecto.UUID.cast(id) do
       {:ok, uuid} ->
+        # Note (Trade-off): Using `Cachex.fetch/3` is the standard way to prevent
+        # Cache Stampedes natively through Cachex's Courier processes.
+        # However, Courier spawns a separate background process to execute the fallback,
+        # which breaks `Ecto.Adapters.SQL.Sandbox` connection ownership in `async: true` tests.
+        # For this MVP, we use `get` and `put` to maintain passing green async tests without
+        # building excessive caching mocks or custom sandbox allowances.
         case Cachex.get(:globaltask_cache, uuid) do
           {:ok, %CreditApplication{} = cached_app} ->
             {:ok, cached_app}
