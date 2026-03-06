@@ -22,16 +22,24 @@ defmodule GlobaltaskWeb.CreditApplicationLive.FormComponent do
               field={@form[:country]}
               type="select"
               label="Country"
-              options={~w(ES PT IT MX CO BR)}
+              options={[{"Spain", "ES"},
+                {"Portugal", "PT"},
+                {"Italy", "IT"},
+                {"Mexico", "MX"},
+                {"Colombia", "CO"},
+                {"Brazil", "BR"}
+              ]}
               prompt="Select Country"
             />
-            <.input
-              field={@form[:document_type]}
-              type="text"
-              label="Document Type (Auto)"
-              readonly={true}
-              class="w-full input bg-gray-100 text-gray-500 cursor-not-allowed"
-            />
+            <div class="fieldset mb-2">
+              <label>
+                <span class="label mb-1">Document Type (Auto)</span>
+                <.input field={@form[:document_type]} type="text" disabled />
+                <div class="w-full input bg-gray-200 text-gray-500 font-semibold cursor-not-allowed select-none flex items-center pointer-events-none">
+                  {Phoenix.HTML.Form.input_value(@form, :document_type) || "Select Country First..."}
+                </div>
+              </label>
+            </div>
           </div>
 
           <.input
