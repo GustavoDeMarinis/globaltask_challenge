@@ -53,4 +53,30 @@ defmodule GlobaltaskWeb.CreditApplicationLiveTest do
       refute render(filtered_view) =~ "Realtime Row 2"
     end
   end
+
+  describe "New (Form)" do
+    test "renders form, validates in real-time, and creates application successfully", %{conn: conn} do
+      {:ok, view, html} = live(conn, ~p"/applications/new")
+
+      assert html =~ "New Credit Application"
+
+      # Test validation errors showing interactively (phx-change)
+      # Simulates the user typing invalid data which triggers the debounced validate event
+      invalid_attrs = %{@valid_es_attrs | "document_number" => "INVALID"}
+
+      assert view
+             |> form("#new-application-form", credit_application: invalid_attrs)
+             |> render_change() =~ "invalid"
+
+      # Test successful form submission
+      {:error, {:live_redirect, %{to: "/"}}} =
+        view
+        |> form("#new-application-form", credit_application: @valid_es_attrs)
+        |> render_submit()
+
+      # Confirm it really hits the context
+      %{data: apps} = CreditApplications.list_applications(%{})
+      assert Enum.any?(apps, fn app -> app.document_number == "12345678Z" end)
+    end
+  end
 end
