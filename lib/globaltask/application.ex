@@ -14,6 +14,7 @@ defmodule Globaltask.Application do
         GlobaltaskWeb.Telemetry,
         {DNSCluster, query: Application.get_env(:globaltask, :dns_cluster_query) || :ignore},
         {Phoenix.PubSub, name: Globaltask.PubSub},
+        {Cachex, name: :globaltask_cache, limit: 10_000},
         # PG NOTIFY listener — enqueues Oban jobs when new applications are created.
         # Skipped in test env (tests use Oban inline mode, no real PG notifications).
         if(Application.get_env(:globaltask, :start_pg_listener, true),
