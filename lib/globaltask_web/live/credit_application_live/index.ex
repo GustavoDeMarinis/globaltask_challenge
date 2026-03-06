@@ -72,6 +72,6 @@ defmodule GlobaltaskWeb.CreditApplicationLive.Index do
 
   defp matches_filters?(app, filters) do
     (filters.country == "" or app.country == filters.country) and
-    (filters.status == "" or app.status == filters.status)
+      (filters.status == "" or app.status == filters.status)
   end
 end

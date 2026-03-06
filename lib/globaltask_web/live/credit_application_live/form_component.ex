@@ -27,10 +27,10 @@ defmodule GlobaltaskWeb.CreditApplicationLive.FormComponent do
             />
             <.input
               field={@form[:document_type]}
-              type="select"
-              label="Document Type"
-              options={~w(DNI NIF CodiceFiscale CURP CC CPF PASSPORT)}
-              prompt="Select Type"
+              type="text"
+              label="Document Type (Auto)"
+              readonly={true}
+              class="w-full input bg-gray-100 text-gray-500 cursor-not-allowed"
             />
           </div>
 
@@ -83,6 +83,8 @@ defmodule GlobaltaskWeb.CreditApplicationLive.FormComponent do
 
   @impl true
   def handle_event("validate", %{"credit_application" => application_params}, socket) do
+    application_params = auto_assign_document_type(application_params)
+
     changeset =
       socket.assigns.application
       |> CreditApplications.CreditApplication.create_changeset(application_params)
@@ -92,6 +94,8 @@ defmodule GlobaltaskWeb.CreditApplicationLive.FormComponent do
   end
 
   def handle_event("save", %{"credit_application" => application_params}, socket) do
+    application_params = auto_assign_document_type(application_params)
+
     case CreditApplications.create_application(application_params) do
       {:ok, _application} ->
         # The creation function automatically pushes the PubSub event
@@ -102,6 +106,15 @@ defmodule GlobaltaskWeb.CreditApplicationLive.FormComponent do
 
       {:error, %Ecto.Changeset{} = changeset} ->
         {:noreply, assign_form(socket, changeset)}
+    end
+  end
+
+  defp auto_assign_document_type(params) do
+    case Globaltask.CountryRules.resolve(params["country"]) do
+      {:ok, module} ->
+        Map.put(params, "document_type", module.required_document_type())
+      {:error, _} ->
+        params
     end
   end
 
