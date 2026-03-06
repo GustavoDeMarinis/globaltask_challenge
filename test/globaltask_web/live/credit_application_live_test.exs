@@ -62,16 +62,21 @@ defmodule GlobaltaskWeb.CreditApplicationLiveTest do
 
       # Test validation errors showing interactively (phx-change)
       # Simulates the user typing invalid data which triggers the debounced validate event
-      invalid_attrs = %{@valid_es_attrs | "document_number" => "INVALID"}
+      invalid_attrs =
+        @valid_es_attrs
+        |> Map.put("document_number", "INVALID")
+        |> Map.delete("document_type")
 
       assert view
              |> form("#new-application-form", credit_application: invalid_attrs)
              |> render_change() =~ "invalid"
 
       # Test successful form submission
+      valid_submit_attrs = Map.delete(@valid_es_attrs, "document_type")
+
       {:error, {:live_redirect, %{to: "/"}}} =
         view
-        |> form("#new-application-form", credit_application: @valid_es_attrs)
+        |> form("#new-application-form", credit_application: valid_submit_attrs)
         |> render_submit()
 
       # Confirm it really hits the context

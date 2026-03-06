@@ -22,7 +22,9 @@ defmodule GlobaltaskWeb.CreditApplicationLive.FormComponent do
               field={@form[:country]}
               type="select"
               label="Country"
-              options={[{"Spain", "ES"},
+              phx-change="country_changed"
+              options={[
+                {"Spain", "ES"},
                 {"Portugal", "PT"},
                 {"Italy", "IT"},
                 {"Mexico", "MX"},
@@ -34,7 +36,11 @@ defmodule GlobaltaskWeb.CreditApplicationLive.FormComponent do
             <div class="fieldset mb-2">
               <label>
                 <span class="label mb-1">Document Type (Auto)</span>
-                <.input field={@form[:document_type]} type="text" disabled />
+                <input
+                  type="hidden"
+                  name={@form[:document_type].name}
+                  value={Phoenix.HTML.Form.input_value(@form, :document_type)}
+                />
                 <div class="w-full input bg-gray-200 text-gray-500 font-semibold cursor-not-allowed select-none flex items-center pointer-events-none">
                   {Phoenix.HTML.Form.input_value(@form, :document_type) || "Select Country First..."}
                 </div>
@@ -90,6 +96,18 @@ defmodule GlobaltaskWeb.CreditApplicationLive.FormComponent do
   end
 
   @impl true
+  def handle_event("country_changed", %{"credit_application" => params}, socket) do
+    params = auto_assign_document_type(params)
+
+    changeset =
+      socket.assigns.application
+      |> CreditApplications.CreditApplication.create_changeset(params)
+      |> Map.put(:action, :validate)
+
+    {:noreply, assign_form(socket, changeset)}
+  end
+
+  @impl true
   def handle_event("validate", %{"credit_application" => application_params}, socket) do
     application_params = auto_assign_document_type(application_params)
 
@@ -112,15 +130,16 @@ defmodule GlobaltaskWeb.CreditApplicationLive.FormComponent do
          |> put_flash(:info, "Application created successfully in the background!")
          |> push_navigate(to: socket.assigns.navigate)}
 
-      {:error, %Ecto.Changeset{} = changeset} ->
-        {:noreply, assign_form(socket, changeset)}
+      {:error, %Ecto.Changeset{} = error_changeset} ->
+        {:noreply, assign_form(socket, error_changeset)}
     end
   end
 
   defp auto_assign_document_type(params) do
-    case Globaltask.CountryRules.resolve(params["country"]) do
+    case Globaltask.CountryRules.resolve(params["country"] || "") do
       {:ok, module} ->
         Map.put(params, "document_type", module.required_document_type())
+
       {:error, _} ->
         params
     end
