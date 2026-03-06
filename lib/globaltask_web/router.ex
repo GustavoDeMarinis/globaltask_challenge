@@ -29,7 +29,9 @@ defmodule GlobaltaskWeb.Router do
   scope "/", GlobaltaskWeb do
     pipe_through :browser
 
-    get "/", PageController, :home
+    live "/", CreditApplicationLive.Index, :index
+    live "/applications/new", CreditApplicationLive.New, :new
+    live "/applications/:id", CreditApplicationLive.Show, :show
   end
 
   scope "/api/v1/auth", GlobaltaskWeb do
