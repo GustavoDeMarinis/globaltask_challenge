@@ -84,4 +84,36 @@ defmodule GlobaltaskWeb.CreditApplicationLiveTest do
       assert Enum.any?(apps, fn app -> app.document_number == "12345678Z" end)
     end
   end
+
+  describe "Show (Details)" do
+    test "displays application details, updates via pubsub, and handles admin actions", %{conn: conn} do
+      {:ok, app} = CreditApplications.create_application(%{@valid_es_attrs | "full_name" => "Show Test Applicant"})
+
+      # Transition to pending_review to enable admin buttons
+      {:ok, app} = CreditApplications.update_status(app, "pending_review")
+
+      {:ok, view, html} = live(conn, ~p"/applications/#{app.id}")
+
+      assert html =~ "Show Test Applicant"
+      assert html =~ "pending_review"
+      assert html =~ "12345678Z"
+
+      # Test Admin Control logic: Approve
+      assert view
+             |> element("button", "Approve")
+             |> render_click() =~ "approved"
+
+      # Let's test external Point-to-Point PubSub Updates
+      # Create a new application and its view to test pubsub isolating from the 'approved' terminal state
+      {:ok, app2} = CreditApplications.create_application(%{@valid_pt_attrs | "full_name" => "PubSub Target"})
+      {:ok, view2, _html} = live(conn, ~p"/applications/#{app2.id}")
+
+      # We manually trigger a backend background change to 'pending_review'
+      {:ok, app2} = CreditApplications.get_application(app2.id)
+      CreditApplications.update_status(app2, "pending_review")
+
+      # The PubSub broadcast should proactively patch the LiveView without explicit click
+      assert render(view2) =~ "pending_review"
+    end
+  end
 end
