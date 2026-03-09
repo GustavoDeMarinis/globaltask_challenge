@@ -50,15 +50,24 @@ defmodule Globaltask.CreditApplications do
   """
   @spec create_application(map()) :: {:ok, %CreditApplication{}} | {:error, Ecto.Changeset.t()}
   def create_application(attrs) do
-    case %CreditApplication{}
-         |> CreditApplication.create_changeset(attrs)
-         |> Repo.insert() do
-      {:ok, app} ->
+    Multi.new()
+    |> Multi.insert(:app, CreditApplication.create_changeset(%CreditApplication{}, attrs))
+    |> Multi.insert(:audit_log, fn %{app: app} ->
+      Globaltask.CreditApplications.AuditLog.changeset(%Globaltask.CreditApplications.AuditLog{}, %{
+        old_status: nil,
+        new_status: "created",
+        actor: "system",
+        credit_application_id: app.id
+      })
+    end)
+    |> Repo.transaction()
+    |> case do
+      {:ok, %{app: app}} ->
         Phoenix.PubSub.broadcast(Globaltask.PubSub, "credit_applications", {:new_application, app})
         {:ok, app}
 
-      error ->
-        error
+      {:error, :app, changeset, _} ->
+        {:error, changeset}
     end
   end
 
@@ -93,6 +102,7 @@ defmodule Globaltask.CreditApplications do
             case Repo.get(CreditApplication, uuid) do
               nil -> {:error, :not_found}
               app ->
+                app = Repo.preload(app, audit_logs: from(a in Globaltask.CreditApplications.AuditLog, order_by: [asc: a.inserted_at]))
                 Cachex.put(:globaltask_cache, uuid, app, ttl: :timer.minutes(5))
                 {:ok, app}
             end
@@ -235,14 +245,20 @@ defmodule Globaltask.CreditApplications do
       iex> update_status(app, "approved")  # from "created" — invalid
       {:error, %Ecto.Changeset{}}
   """
-  @spec update_status(%CreditApplication{}, String.t()) ::
+  @spec update_status(%CreditApplication{}, String.t(), String.t()) ::
           {:ok, %CreditApplication{}} | {:error, Ecto.Changeset.t() | :stale | term()}
-  def update_status(%CreditApplication{} = app, new_status) do
+  def update_status(%CreditApplication{} = app, new_status, actor \\ "system") do
     multi =
       Multi.new()
-      |> Multi.update(:status_change,
-        CreditApplication.update_status_changeset(app, %{status: new_status})
-      )
+      |> Multi.update(:status_change, CreditApplication.update_status_changeset(app, %{status: new_status}))
+      |> Multi.insert(:audit_log, fn %{status_change: _updated_app} ->
+        Globaltask.CreditApplications.AuditLog.changeset(%Globaltask.CreditApplications.AuditLog{}, %{
+          old_status: app.status,
+          new_status: new_status,
+          actor: actor,
+          credit_application_id: app.id
+        })
+      end)
       |> Multi.run(:country_hook, fn _repo, %{status_change: updated_app} ->
         case Globaltask.CountryRules.resolve(updated_app.country) do
           {:ok, module} ->

@@ -83,6 +83,25 @@
           Note: Manual controls are only available when the application is 'pending_review'.
         </p>
       </div>
+
+      <div class="mt-8 pt-6 border-t border-base-200">
+        <h3 class="text-lg font-semibold mb-4">Audit Trail</h3>
+        <ul class="steps steps-vertical w-full">
+          <%= if Ecto.assoc_loaded?(@application.audit_logs) do %>
+            <%= for log <- @application.audit_logs do %>
+              <li class="step step-primary">
+                <div class="text-left ml-2 py-2">
+                  <span class="font-bold uppercase text-xs text-blue-600">[{log.actor}]</span>
+                  <p class="text-sm">Status set to <span class="badge badge-sm badge-outline ml-1">{log.new_status}</span></p>
+                  <p class="text-xs text-gray-400">{NaiveDateTime.to_string(log.inserted_at)}</p>
+                </div>
+              </li>
+            <% end %>
+          <% else %>
+            <p class="text-sm text-gray-500 italic">Audit trail not loaded.</p>
+          <% end %>
+        </ul>
+      </div>
     </div>
   <% else %>
     <div class="bg-base-100 border border-base-200 rounded-lg p-6 shadow-sm flex items-center justify-center text-center">
