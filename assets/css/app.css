@@ -1,0 +1,6 @@
+@import "tailwindcss";
+
+@source "../../lib/**/*.{ex,heex}";
+@source "../../priv/static/assets/js/**/*.js";
+
+/* You can add custom CSS below */
