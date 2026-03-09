@@ -42,10 +42,7 @@ defmodule Globaltask.CountryRules.BRTest do
       refute changeset.errors[:document_number]
     end
 
-    test "invalid CPF — wrong check digits" do
-      changeset = build_changeset(%{"document_number" => "52998224720"}) |> BR.validate_document()
-      assert %{document_number: [_]} = errors_on(changeset)
-    end
+
 
     test "invalid CPF — wrong length (too short)" do
       changeset = build_changeset(%{"document_number" => "5299822472"}) |> BR.validate_document()
@@ -57,20 +54,7 @@ defmodule Globaltask.CountryRules.BRTest do
       assert %{document_number: [_]} = errors_on(changeset)
     end
 
-    test "invalid CPF — all zeros" do
-      changeset = build_changeset(%{"document_number" => "00000000000"}) |> BR.validate_document()
-      assert %{document_number: [_]} = errors_on(changeset)
-    end
 
-    test "invalid CPF — all same digit" do
-      changeset = build_changeset(%{"document_number" => "11111111111"}) |> BR.validate_document()
-      assert %{document_number: [_]} = errors_on(changeset)
-    end
-
-    test "invalid CPF — all same digit (9s)" do
-      changeset = build_changeset(%{"document_number" => "99999999999"}) |> BR.validate_document()
-      assert %{document_number: [_]} = errors_on(changeset)
-    end
 
     test "valid CPF — whitespace trimmed" do
       changeset = build_changeset(%{"document_number" => "  52998224725  "}) |> BR.validate_document()

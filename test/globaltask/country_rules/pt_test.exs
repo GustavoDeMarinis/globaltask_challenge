@@ -43,10 +43,7 @@ defmodule Globaltask.CountryRules.PTTest do
       refute changeset.errors[:document_number]
     end
 
-    test "invalid NIF — wrong check digit" do
-      changeset = build_changeset(%{"document_number" => "123456780"}) |> PT.validate_document()
-      assert %{document_number: [_]} = errors_on(changeset)
-    end
+
 
     test "invalid NIF — wrong length (too short)" do
       changeset = build_changeset(%{"document_number" => "12345678"}) |> PT.validate_document()

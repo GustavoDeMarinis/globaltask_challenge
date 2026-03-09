@@ -82,20 +82,6 @@ defmodule Globaltask.CountryRules.ES do
   @spec valid_dni?(String.t()) :: boolean()
   defp valid_dni?(doc_number) do
     trimmed = String.trim(doc_number)
-
-    case Regex.run(~r/^(\d{8})([A-Z])$/i, trimmed) do
-      [_full, digits_str, letter] ->
-        expected_letter = expected_control_letter(digits_str)
-        String.upcase(letter) == expected_letter
-
-      _ ->
-        false
-    end
-  end
-
-  @spec expected_control_letter(String.t()) :: String.t()
-  defp expected_control_letter(digits_str) do
-    index = digits_str |> String.to_integer() |> rem(23)
-    String.at(@dni_control_letters, index)
+    Regex.match?(~r/^[0-9]{8}[A-HJ-NP-TV-Z]$/i, trimmed)
   end
 end

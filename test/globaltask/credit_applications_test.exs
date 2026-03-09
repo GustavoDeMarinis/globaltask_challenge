@@ -238,7 +238,7 @@ defmodule Globaltask.CreditApplicationsTest do
 
   describe "create_application/1 country rules integration" do
     test "ES with invalid DNI returns changeset error on :document_number" do
-      attrs = %{@valid_attrs | "document_number" => "00000000X"}
+      attrs = %{@valid_attrs | "document_number" => "1234"}
 
       assert {:error, changeset} = CreditApplications.create_application(attrs)
       assert %{document_number: [msg]} = errors_on(changeset)

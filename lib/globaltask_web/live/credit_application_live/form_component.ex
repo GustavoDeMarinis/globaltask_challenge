@@ -22,7 +22,6 @@ defmodule GlobaltaskWeb.CreditApplicationLive.FormComponent do
               field={@form[:country]}
               type="select"
               label="Country"
-              phx-change="country_changed"
               options={[
                 {"Spain", "ES"},
                 {"Portugal", "PT"},
@@ -93,18 +92,6 @@ defmodule GlobaltaskWeb.CreditApplicationLive.FormComponent do
      socket
      |> assign(assigns)
      |> assign_form(changeset)}
-  end
-
-  @impl true
-  def handle_event("country_changed", %{"credit_application" => params}, socket) do
-    params = auto_assign_document_type(params)
-
-    changeset =
-      socket.assigns.application
-      |> CreditApplications.CreditApplication.create_changeset(params)
-      |> Map.put(:action, :validate)
-
-    {:noreply, assign_form(socket, changeset)}
   end
 
   @impl true

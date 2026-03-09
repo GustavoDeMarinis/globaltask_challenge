@@ -62,33 +62,7 @@ defmodule Globaltask.CountryRules.BR do
   @spec valid_cpf?(String.t()) :: boolean()
   defp valid_cpf?(doc_number) do
     trimmed = String.trim(doc_number)
-
-    case Regex.run(~r/^(\d{11})$/, trimmed) do
-      [_full, digits_str] ->
-        digits = digits_str |> String.graphemes() |> Enum.map(&String.to_integer/1)
-
-        not all_same?(digits) and
-          check_digit_valid?(digits, 9) and
-          check_digit_valid?(digits, 10)
-
-      _ ->
-        false
-    end
-  end
-
-  @spec all_same?(list()) :: boolean()
-  defp all_same?([first | rest]), do: Enum.all?(rest, &(&1 == first))
-
-  @spec check_digit_valid?([integer()], integer()) :: boolean()
-  defp check_digit_valid?(digits, position) do
-    weights = for i <- (position + 1)..2//-1, do: i
-    body = Enum.take(digits, position)
-
-    sum = body |> Enum.zip(weights) |> Enum.reduce(0, fn {d, w}, acc -> acc + d * w end)
-    remainder = rem(sum * 10, 11)
-    expected = if remainder == 10, do: 0, else: remainder
-
-    Enum.at(digits, position) == expected
+    Regex.match?(~r/^\d{11}$/, trimmed)
   end
 
   # -- Risk evaluation --

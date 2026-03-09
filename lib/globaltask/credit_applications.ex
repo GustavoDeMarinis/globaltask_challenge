@@ -63,6 +63,7 @@ defmodule Globaltask.CreditApplications do
     |> Repo.transaction()
     |> case do
       {:ok, %{app: app}} ->
+        app = Repo.preload(app, audit_logs: from(a in Globaltask.CreditApplications.AuditLog, order_by: [asc: a.inserted_at]))
         Phoenix.PubSub.broadcast(Globaltask.PubSub, "credit_applications", {:new_application, app})
         {:ok, app}
 
@@ -341,6 +342,6 @@ defmodule Globaltask.CreditApplications do
 
   defp invalidate_cache(%CreditApplication{id: id} = app) do
     Cachex.del(:globaltask_cache, id)
-    app
+    Repo.preload(app, [audit_logs: from(a in Globaltask.CreditApplications.AuditLog, order_by: [asc: a.inserted_at])], force: true)
   end
 end
