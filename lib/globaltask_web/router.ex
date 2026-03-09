@@ -29,9 +29,16 @@ defmodule GlobaltaskWeb.Router do
   scope "/", GlobaltaskWeb do
     pipe_through :browser
 
-    live "/", CreditApplicationLive.Index, :index
-    live "/applications/new", CreditApplicationLive.New, :new
-    live "/applications/:id", CreditApplicationLive.Show, :show
+    live_session :default, on_mount: {GlobaltaskWeb.UserAuth, :ensure_role} do
+      live "/", CreditApplicationLive.Index, :index
+      live "/applications/new", CreditApplicationLive.New, :new
+      live "/applications/:id", CreditApplicationLive.Show, :show
+    end
+  end
+
+  scope "/auth", GlobaltaskWeb do
+    pipe_through :browser
+    get "/impersonate", AuthController, :impersonate
   end
 
   scope "/api/v1/auth", GlobaltaskWeb do

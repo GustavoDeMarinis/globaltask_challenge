@@ -52,35 +52,47 @@
     </dl>
   </div>
 
-  <div class="bg-base-100 border border-base-200 rounded-lg p-6 shadow-sm flex flex-col">
-    <h2 class="text-xl font-semibold mb-4">Provider Risk Data</h2>
-
-    <div class="flex-grow bg-gray-900 rounded p-4 overflow-auto flex text-sm text-green-400 font-mono">
-      <pre><%= if @application.provider_payload == %{} do %>
-<span class="text-gray-500 italic">Waiting for background ingestion...</span><% else %>{Jason.encode!(@application.provider_payload, pretty: true)}<% end %></pre>
-    </div>
-
-    <div class="mt-6 pt-6 border-t border-base-200">
-      <h3 class="text-lg font-semibold mb-3">Admin Controls</h3>
-      <div class="flex gap-3">
-        <button
-          phx-click="approve"
-          class="btn btn-success btn-sm"
-          disabled={@application.status != "pending_review"}
-        >
-          Approve
-        </button>
-        <button
-          phx-click="reject"
-          class="btn btn-error btn-sm"
-          disabled={@application.status != "pending_review"}
-        >
-          Reject
-        </button>
+  <%= if @current_role == "admin" do %>
+    <div class="bg-base-100 border border-base-200 rounded-lg p-6 shadow-sm flex flex-col">
+      <h2 class="text-xl font-semibold mb-4">Provider Risk Data</h2>
+      
+      <div class="flex-grow bg-gray-900 rounded p-4 overflow-auto flex text-sm text-green-400 font-mono">
+        <pre><%= if @application.provider_payload == %{} do %>
+  <span class="text-gray-500 italic">Waiting for background ingestion...</span><% else %>{Jason.encode!(@application.provider_payload, pretty: true)}<% end %></pre>
       </div>
-      <p class="text-xs text-gray-400 mt-2">
-        Note: Manual controls are only available when the application is 'pending_review'.
-      </p>
+      
+      <div class="mt-6 pt-6 border-t border-base-200">
+        <h3 class="text-lg font-semibold mb-3">Admin Controls</h3>
+        <div class="flex gap-3">
+          <button
+            phx-click="approve"
+            class="btn btn-success btn-sm"
+            disabled={@application.status != "pending_review"}
+          >
+            Approve
+          </button>
+          <button
+            phx-click="reject"
+            class="btn btn-error btn-sm"
+            disabled={@application.status != "pending_review"}
+          >
+            Reject
+          </button>
+        </div>
+        <p class="text-xs text-gray-400 mt-2">
+          Note: Manual controls are only available when the application is 'pending_review'.
+        </p>
+      </div>
     </div>
-  </div>
+  <% else %>
+    <div class="bg-base-100 border border-base-200 rounded-lg p-6 shadow-sm flex items-center justify-center text-center">
+      <div class="max-w-xs text-gray-500">
+        <svg class="w-12 h-12 mx-auto mb-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+        </svg>
+        <p class="font-semibold text-gray-600 mb-1">Restricted Access</p>
+        <p class="text-sm">Risk analysis data and approval controls are strictly reserved for Admin users.</p>
+      </div>
+    </div>
+  <% end %>
 </div>

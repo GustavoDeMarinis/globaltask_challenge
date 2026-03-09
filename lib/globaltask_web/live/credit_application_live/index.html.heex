@@ -1,7 +1,20 @@
 <.header>
   Credit Applications
-  <:subtitle>Real-time Dashboard (Latest 50 applications limited for MVP)</:subtitle>
+  <:subtitle>
+    Real-time Dashboard (Latest 50 applications limited for MVP)<br/>
+    <span class="text-xs mt-1 block">Authentication Mode: <strong class="uppercase text-blue-600">{@current_role}</strong></span>
+  </:subtitle>
   <:actions>
+    <%= if @current_role == "admin" do %>
+      <.link href={~p"/auth/impersonate?role=client"} class="btn btn-outline btn-warning btn-sm">
+        Log Out (Admin)
+      </.link>
+    <% else %>
+      <.link href={~p"/auth/impersonate?role=admin"} class="btn btn-outline btn-info btn-sm">
+        Impersonate Admin
+      </.link>
+    <% end %>
+    
     <.link navigate={~p"/applications/new"}>
       <.button>New Application</.button>
     </.link>

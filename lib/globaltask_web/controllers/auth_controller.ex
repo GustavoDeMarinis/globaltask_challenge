@@ -16,4 +16,21 @@ defmodule GlobaltaskWeb.AuthController do
     |> put_status(:bad_request)
     |> json(%{errors: %{detail: "Invalid or missing role. Must be 'admin' or 'client'."}})
   end
+
+  @doc """
+  Sets an encrypted session cookie to impersonate a role in the LiveView browser UI.
+  """
+  def impersonate(conn, %{"role" => "admin"}) do
+    conn
+    |> put_session(:current_role, "admin")
+    |> put_flash(:info, "Impersonation active. You are now operating as an Admin.")
+    |> redirect(to: ~p"/")
+  end
+
+  def impersonate(conn, _params) do
+    conn
+    |> delete_session(:current_role)
+    |> put_flash(:info, "Impersonation cleared. You are back to regular client mode.")
+    |> redirect(to: ~p"/")
+  end
 end

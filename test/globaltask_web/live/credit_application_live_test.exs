@@ -92,6 +92,9 @@ defmodule GlobaltaskWeb.CreditApplicationLiveTest do
       # Transition to pending_review to enable admin buttons
       {:ok, app} = CreditApplications.update_status(app, "pending_review")
 
+      # Impersonate admin in the test connection
+      conn = Plug.Test.init_test_session(conn, current_role: "admin")
+
       {:ok, view, html} = live(conn, ~p"/applications/#{app.id}")
 
       assert html =~ "Show Test Applicant"
