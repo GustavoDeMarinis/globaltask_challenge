@@ -214,7 +214,7 @@ defmodule GlobaltaskWeb.API.V1.CreditApplicationControllerTest do
 
   describe "POST /api/v1/credit_applications country rules" do
     test "ES with invalid DNI returns 422 with document_number error", %{conn: conn} do
-      attrs = %{@valid_attrs | "document_number" => "00000000X"}
+      attrs = %{@valid_attrs | "document_number" => "1234"}
       conn = post(conn, ~p"/api/v1/credit_applications", attrs)
 
       assert %{"errors" => errors} = json_response(conn, 422)

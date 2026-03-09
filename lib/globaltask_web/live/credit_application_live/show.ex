@@ -33,7 +33,7 @@ defmodule GlobaltaskWeb.CreditApplicationLive.Show do
 
   @impl true
   def handle_event("approve", _, socket) do
-    case CreditApplications.update_status(socket.assigns.application, "approved") do
+    case CreditApplications.update_status(socket.assigns.application, "approved", "admin") do
       {:ok, updated_app} ->
         {:noreply,
          socket
@@ -47,7 +47,7 @@ defmodule GlobaltaskWeb.CreditApplicationLive.Show do
 
   @impl true
   def handle_event("reject", _, socket) do
-    case CreditApplications.update_status(socket.assigns.application, "rejected") do
+    case CreditApplications.update_status(socket.assigns.application, "rejected", "admin") do
       {:ok, updated_app} ->
         {:noreply,
          socket

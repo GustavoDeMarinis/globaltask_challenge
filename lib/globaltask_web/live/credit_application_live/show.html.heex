@@ -10,34 +10,34 @@
 
 <div class="mt-8 grid grid-cols-1 md:grid-cols-2 gap-8">
   <div class="bg-base-100 border border-base-200 rounded-lg p-6 shadow-sm">
-    <h2 class="text-xl font-semibold mb-4">Applicant Data</h2>
+    <h2 class="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">Applicant Data</h2>
     <dl class="divide-y divide-base-200">
       <div class="py-3 flex justify-between">
-        <dt class="text-gray-500 font-medium">Full Name</dt>
-        <dd class="font-semibold">{@application.full_name}</dd>
+        <dt class="text-gray-500 dark:text-gray-400 font-medium">Full Name</dt>
+        <dd class="font-semibold text-gray-900 dark:text-gray-100">{@application.full_name}</dd>
       </div>
       <div class="py-3 flex justify-between">
-        <dt class="text-gray-500 font-medium">Country</dt>
-        <dd class="font-semibold">{@application.country}</dd>
+        <dt class="text-gray-500 dark:text-gray-400 font-medium">Country</dt>
+        <dd class="font-semibold text-gray-900 dark:text-gray-100">{@application.country}</dd>
       </div>
       <div class="py-3 flex justify-between">
-        <dt class="text-gray-500 font-medium">Document</dt>
-        <dd class="font-semibold">{@application.document_type} {@application.document_number}</dd>
+        <dt class="text-gray-500 dark:text-gray-400 font-medium">Document</dt>
+        <dd class="font-semibold text-gray-900 dark:text-gray-100">{@application.document_type} {@application.document_number}</dd>
       </div>
       <div class="py-3 flex justify-between">
-        <dt class="text-gray-500 font-medium">Application Date</dt>
-        <dd class="font-semibold">{Date.to_string(@application.application_date)}</dd>
+        <dt class="text-gray-500 dark:text-gray-400 font-medium">Application Date</dt>
+        <dd class="font-semibold text-gray-900 dark:text-gray-100">{Date.to_string(@application.application_date)}</dd>
       </div>
       <div class="py-3 flex justify-between">
-        <dt class="text-gray-500 font-medium">Requested Amount</dt>
-        <dd class="font-semibold text-blue-600">{@application.requested_amount}</dd>
+        <dt class="text-gray-500 dark:text-gray-400 font-medium">Requested Amount</dt>
+        <dd class="font-semibold text-blue-600 dark:text-blue-400">{@application.requested_amount}</dd>
       </div>
       <div class="py-3 flex justify-between">
-        <dt class="text-gray-500 font-medium">Monthly Income</dt>
-        <dd class="font-semibold">{@application.monthly_income}</dd>
+        <dt class="text-gray-500 dark:text-gray-400 font-medium">Monthly Income</dt>
+        <dd class="font-semibold text-gray-900 dark:text-gray-100">{@application.monthly_income}</dd>
       </div>
       <div class="py-3 flex justify-between items-center">
-        <dt class="text-gray-500 font-medium">Status</dt>
+        <dt class="text-gray-500 dark:text-gray-400 font-medium">Status</dt>
         <dd>
           <span class={[
             "badge font-bold",
@@ -54,15 +54,15 @@
 
   <%= if @current_role == "admin" do %>
     <div class="bg-base-100 border border-base-200 rounded-lg p-6 shadow-sm flex flex-col">
-      <h2 class="text-xl font-semibold mb-4">Provider Risk Data</h2>
+      <h2 class="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">Provider Risk Data</h2>
       
-      <div class="flex-grow bg-gray-900 rounded p-4 overflow-auto flex text-sm text-green-400 font-mono">
+      <div class="flex-grow bg-gray-100 dark:bg-gray-950 rounded p-4 overflow-auto flex text-sm text-green-600 dark:text-green-400 font-mono">
         <pre><%= if @application.provider_payload == %{} do %>
   <span class="text-gray-500 italic">Waiting for background ingestion...</span><% else %>{Jason.encode!(@application.provider_payload, pretty: true)}<% end %></pre>
       </div>
       
       <div class="mt-6 pt-6 border-t border-base-200">
-        <h3 class="text-lg font-semibold mb-3">Admin Controls</h3>
+        <h3 class="text-lg font-semibold mb-3 text-gray-900 dark:text-gray-100">Admin Controls</h3>
         <div class="flex gap-3">
           <button
             phx-click="approve"
@@ -82,6 +82,25 @@
         <p class="text-xs text-gray-400 mt-2">
           Note: Manual controls are only available when the application is 'pending_review'.
         </p>
+      </div>
+
+      <div class="mt-8 pt-6 border-t border-base-200">
+        <h3 class="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">Audit Trail</h3>
+        <ul class="steps steps-vertical w-full">
+          <%= if Ecto.assoc_loaded?(@application.audit_logs) do %>
+            <%= for log <- @application.audit_logs do %>
+              <li class="step step-primary">
+                <div class="text-left ml-2 py-2">
+                  <span class="font-bold uppercase text-xs text-blue-600">[{log.actor}]</span>
+                  <p class="text-sm text-gray-900 dark:text-gray-100">Status set to <span class="badge badge-sm badge-outline ml-1">{log.new_status}</span></p>
+                  <p class="text-xs text-gray-400">{NaiveDateTime.to_string(log.inserted_at)}</p>
+                </div>
+              </li>
+            <% end %>
+          <% else %>
+            <p class="text-sm text-gray-500 italic">Audit trail not loaded.</p>
+          <% end %>
+        </ul>
       </div>
     </div>
   <% else %>

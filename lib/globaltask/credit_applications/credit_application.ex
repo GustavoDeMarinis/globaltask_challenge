@@ -37,6 +37,8 @@ defmodule Globaltask.CreditApplications.CreditApplication do
     field :fetch_attempts, :integer, default: 0
     field :lock_version, :integer, default: 0
 
+    has_many :audit_logs, Globaltask.CreditApplications.AuditLog
+
     timestamps(type: :utc_datetime)
   end
 

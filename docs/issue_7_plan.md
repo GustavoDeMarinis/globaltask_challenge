@@ -1,4 +1,4 @@
-# Issue #7 — Bonus: Detailed Audit Trail (Challenge §6.4)
+# Issue #7 — Bonus: Detailed Audit Trail
 
 ## Technical Objective
 
