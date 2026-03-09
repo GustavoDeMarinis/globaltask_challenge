@@ -24,7 +24,9 @@ config :globaltask, GlobaltaskWeb.Endpoint,
   code_reloader: true,
   debug_errors: true,
   secret_key_base: System.get_env("SECRET_KEY_BASE", "dev-only-secret-key-base-that-is-at-least-64-bytes-long-for-phoenix"),
-  watchers: []
+  watchers: [
+    esbuild: {Esbuild, :install_and_run, [:default, ~w(--sourcemap=inline --watch)]}
+  ]
 
 # ## SSL Support
 #

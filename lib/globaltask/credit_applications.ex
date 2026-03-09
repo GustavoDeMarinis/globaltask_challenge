@@ -50,9 +50,16 @@ defmodule Globaltask.CreditApplications do
   """
   @spec create_application(map()) :: {:ok, %CreditApplication{}} | {:error, Ecto.Changeset.t()}
   def create_application(attrs) do
-    %CreditApplication{}
-    |> CreditApplication.create_changeset(attrs)
-    |> Repo.insert()
+    case %CreditApplication{}
+         |> CreditApplication.create_changeset(attrs)
+         |> Repo.insert() do
+      {:ok, app} ->
+        Phoenix.PubSub.broadcast(Globaltask.PubSub, "credit_applications", {:new_application, app})
+        {:ok, app}
+
+      error ->
+        error
+    end
   end
 
   @doc """
@@ -167,7 +174,10 @@ defmodule Globaltask.CreditApplications do
     |> Repo.transaction()
     |> case do
       {:ok, %{update_payload: updated_app}} ->
-        {:ok, invalidate_cache(updated_app)}
+        app_to_return = invalidate_cache(updated_app)
+        Phoenix.PubSub.broadcast(Globaltask.PubSub, "credit_applications", {:application_updated, app_to_return})
+        Phoenix.PubSub.broadcast(Globaltask.PubSub, "credit_application:#{app_to_return.id}", {:application_updated, app_to_return})
+        {:ok, app_to_return}
       {:error, _failed_op, failed_value, _changes} ->
         # Ecto.StaleEntryError comes as an exception during repo run if not caught natively,
         # but Ecto.Multi handles optimistic lock failures internally as changeset errors.
@@ -256,7 +266,11 @@ defmodule Globaltask.CreditApplications do
     multi
     |> Repo.transaction()
     |> case do
-      {:ok, %{status_change: updated_app}} -> {:ok, invalidate_cache(updated_app)}
+      {:ok, %{status_change: updated_app}} ->
+        app_to_return = invalidate_cache(updated_app)
+        Phoenix.PubSub.broadcast(Globaltask.PubSub, "credit_applications", {:application_updated, app_to_return})
+        Phoenix.PubSub.broadcast(Globaltask.PubSub, "credit_application:#{app_to_return.id}", {:application_updated, app_to_return})
+        {:ok, app_to_return}
       {:error, :status_change, changeset, _} -> {:error, changeset}
       {:error, :country_hook, reason, _} -> {:error, reason}
     end

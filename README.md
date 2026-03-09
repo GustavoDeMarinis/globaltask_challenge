@@ -114,6 +114,38 @@ make test
 
 Tests use `Ecto.Adapters.SQL.Sandbox` for isolated, concurrent database access.
 
+## Monitoring & Scaling
+
+Globaltask uses `Oban` for robust, distributed job processing and `Telemetry` to instrument latency and traffic spikes natively. Background ingestions automatically exponentially backoff to respect Provider limits without stalling Web UI requests.
+
+---
+
+## 🖥️ Web UI & Real-Time Dashboard (Issue #6)
+
+This application includes a fully native, real-time reactive Web UI built using **Phoenix LiveView**, completely eliminating the need for bulky external Single Page Applications (SPAs) like React or Vue. 
+
+By leveraging Elixir's intrinsic WebSocket channels and Erlang's lightweight processes, the UI instantly reflects modifications executed by async background workers without full-page reloads.
+
+### Accessing the Interface
+
+1. Boot the application using `make run`.
+2. Open your browser and navigate to **http://localhost:4000/**.
+
+**Feature Highlights:**
+- **Asynchronous DOM Diffing:** Submit a form dynamically (`/applications/new`); validation runs securely on the Ecto models server-side, pushing back infinitesimal DOM patches.
+- **Background Ingestion Streams:** Click into a Credit Application whose status is `created`. As the `Oban` risk worker evaluates the application asynchronously, the UI will proactively morph its payload block from "Waiting..." to formatting the actual `provider_payload` in real-time.
+
+### 🔐 Admin Role & UI Security
+
+To satisfy rigorous security boundaries, sensitive risk data and manual state machine controls (Approve/Reject) are guarded against standard clients. Authenticity is managed via a dedicated `live_session` pipeline enforcing cookie signatures injected during the WebSocket mount handshake.
+
+**To test the Admin workflow:**
+1. Navigate to the Home Dashboard (`http://localhost:4000/`).
+2. Click the explicitly highlighted **"Impersonate Admin"** button in the header (or explicitly visit `/auth/impersonate?role=admin`).
+3. Click into an evaluation pending review to unlock and test manual approvals.
+
+### LiveView vs React Architecture Choice
+Building natively via LiveView is a deliberate architectural enhancement. Given Elixir's supreme concurrency primitives, separating the frontend into an external Node.js repository introduces unnecessary REST latency, CORS complexity, duplicated type/schema models, and heavily complicated deployment pipelines. LiveView is strictly superior for this bounded domain's MVP.
 ## Async Risk Evaluation Pipeline
 
 Globaltask features a robust asynchronous pipeline to fetch data from local bank providers and evaluate credit risk without blocking the API:

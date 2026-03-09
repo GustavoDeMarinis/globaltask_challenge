@@ -1,0 +1,72 @@
+<.header>
+  Credit Applications
+  <:subtitle>
+    Real-time Dashboard (Latest 50 applications limited for MVP)<br/>
+    <span class="text-xs mt-1 block">Authentication Mode: <strong class="uppercase text-blue-600">{@current_role}</strong></span>
+  </:subtitle>
+  <:actions>
+    <%= if @current_role == "admin" do %>
+      <.link href={~p"/auth/impersonate?role=client"} class="btn btn-outline btn-warning btn-sm">
+        Log Out (Admin)
+      </.link>
+    <% else %>
+      <.link href={~p"/auth/impersonate?role=admin"} class="btn btn-outline btn-info btn-sm">
+        Impersonate Admin
+      </.link>
+    <% end %>
+    
+    <.link navigate={~p"/applications/new"}>
+      <.button>New Application</.button>
+    </.link>
+  </:actions>
+</.header>
+
+<div class="my-6 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+  <form phx-change="filter" id="filter-form" class="flex gap-4 items-end">
+    <div class="flex-1">
+      <label class="block text-sm font-semibold mb-1">Country</label>
+      <select name="filters[country]" class="select select-bordered w-full bg-white">
+        <option value="">All Countries</option>
+        {Phoenix.HTML.Form.options_for_select(~w(ES PT IT MX CO BR), @filters.country)}
+      </select>
+    </div>
+    
+    <div class="flex-1">
+      <label class="block text-sm font-semibold mb-1">Status</label>
+      <select name="filters[status]" class="select select-bordered w-full bg-white">
+        <option value="">All Statuses</option>
+        {Phoenix.HTML.Form.options_for_select(~w(created pending_review approved rejected), @filters.status)}
+      </select>
+    </div>
+  </form>
+</div>
+
+<.table
+  id="applications"
+  rows={@streams.applications}
+  row_click={fn {_id, app} -> JS.navigate(~p"/applications/#{app.id}") end}
+>
+  <:col :let={{_id, app}} label="Country"><span class="font-mono font-bold">{app.country}</span></:col>
+  <:col :let={{_id, app}} label="Applicant">{app.full_name}</:col>
+  <:col :let={{_id, app}} label="Document">
+    <span class="text-xs text-gray-500 uppercase">{app.document_type}</span>
+    <span class="font-mono block">{app.document_number}</span>
+  </:col>
+  <:col :let={{_id, app}} label="Amount"><span class="font-mono">${app.requested_amount}</span></:col>
+  <:col :let={{_id, app}} label="Status">
+    <span class={[
+      "px-2 py-1 rounded text-xs font-semibold uppercase",
+      app.status == "created" && "bg-gray-200 text-gray-800",
+      app.status == "pending_review" && "bg-yellow-100 text-yellow-800 border border-yellow-300",
+      app.status == "approved" && "bg-green-100 text-green-800 border border-green-300",
+      app.status == "rejected" && "bg-red-100 text-red-800 border border-red-300"
+    ]}>
+      {app.status}
+    </span>
+  </:col>
+  <:col :let={{_id, app}} label="Date">
+    <span class="text-xs text-gray-400 font-mono">
+      {Calendar.strftime(app.inserted_at, "%Y-%m-%d %H:%M:%S")}
+    </span>
+  </:col>
+</.table>
