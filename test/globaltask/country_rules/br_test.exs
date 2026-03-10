@@ -100,4 +100,28 @@ defmodule Globaltask.CountryRules.BRTest do
       assert %{requested_amount: [_]} = errors_on(changeset)
     end
   end
+
+  # -- evaluate_risk/1 --
+
+  describe "evaluate_risk/1" do
+    test "score >= 600 is approved" do
+      app = %CreditApplication{provider_payload: %{"serasa_score" => 650}}
+      assert BR.evaluate_risk(app) == :approve
+    end
+
+    test "score between 400 and 599 is reviewed" do
+      app = %CreditApplication{provider_payload: %{"serasa_score" => 500}}
+      assert BR.evaluate_risk(app) == :review
+    end
+
+    test "score < 400 is rejected" do
+      app = %CreditApplication{provider_payload: %{"serasa_score" => 350}}
+      assert BR.evaluate_risk(app) == :reject
+    end
+
+    test "skips evaluation when provider payload is invalid" do
+      app = %CreditApplication{provider_payload: %{}}
+      assert BR.evaluate_risk(app) == :skip
+    end
+  end
 end

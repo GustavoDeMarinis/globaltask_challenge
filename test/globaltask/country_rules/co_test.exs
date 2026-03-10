@@ -79,4 +79,28 @@ defmodule Globaltask.CountryRules.COTest do
       refute changeset.errors[:requested_amount]
     end
   end
+
+  # -- evaluate_risk/1 --
+
+  describe "evaluate_risk/1" do
+    test "ratio <= 0.3 is approved" do
+      app = %CreditApplication{provider_payload: %{"total_debt" => "300"}, monthly_income: Decimal.new("1000")}
+      assert CO.evaluate_risk(app) == :approve
+    end
+
+    test "ratio between 0.3 and 0.4 is reviewed" do
+      app = %CreditApplication{provider_payload: %{"total_debt" => "400"}, monthly_income: Decimal.new("1000")}
+      assert CO.evaluate_risk(app) == :review
+    end
+
+    test "ratio > 0.4 is rejected" do
+      app = %CreditApplication{provider_payload: %{"total_debt" => "500"}, monthly_income: Decimal.new("1000")}
+      assert CO.evaluate_risk(app) == :reject
+    end
+
+    test "skips evaluation when provider payload is invalid" do
+      app = %CreditApplication{provider_payload: %{}, monthly_income: Decimal.new("1000")}
+      assert CO.evaluate_risk(app) == :skip
+    end
+  end
 end

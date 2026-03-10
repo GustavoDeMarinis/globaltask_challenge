@@ -87,4 +87,28 @@ defmodule Globaltask.CountryRules.MXTest do
       refute changeset.errors[:requested_amount]
     end
   end
+
+  # -- evaluate_risk/1 --
+
+  describe "evaluate_risk/1" do
+    test "score >= 650 is approved" do
+      app = %CreditApplication{provider_payload: %{"buro_score" => 700}}
+      assert MX.evaluate_risk(app) == :approve
+    end
+
+    test "score between 500 and 649 is reviewed" do
+      app = %CreditApplication{provider_payload: %{"buro_score" => 600}}
+      assert MX.evaluate_risk(app) == :review
+    end
+
+    test "score < 500 is rejected" do
+      app = %CreditApplication{provider_payload: %{"buro_score" => 450}}
+      assert MX.evaluate_risk(app) == :reject
+    end
+
+    test "skips evaluation when provider payload is invalid" do
+      app = %CreditApplication{provider_payload: %{}}
+      assert MX.evaluate_risk(app) == :skip
+    end
+  end
 end

@@ -85,4 +85,33 @@ defmodule Globaltask.CountryRules.ITTest do
       assert %{monthly_income: [_]} = errors_on(changeset)
     end
   end
+
+  # -- evaluate_risk/1 --
+
+  describe "evaluate_risk/1" do
+    test "stable is approved" do
+      app = %CreditApplication{provider_payload: %{"financial_stability" => "stable"}}
+      assert IT.evaluate_risk(app) == :approve
+    end
+
+    test "moderate is reviewed" do
+      app = %CreditApplication{provider_payload: %{"financial_stability" => "moderate"}}
+      assert IT.evaluate_risk(app) == :review
+    end
+
+    test "at_risk is rejected" do
+      app = %CreditApplication{provider_payload: %{"financial_stability" => "at_risk"}}
+      assert IT.evaluate_risk(app) == :reject
+    end
+
+    test "unknown stability is rejected" do
+      app = %CreditApplication{provider_payload: %{"financial_stability" => "unknown"}}
+      assert IT.evaluate_risk(app) == :reject
+    end
+
+    test "skips evaluation when provider payload is missing financial_stability" do
+      app = %CreditApplication{provider_payload: %{}}
+      assert IT.evaluate_risk(app) == :skip
+    end
+  end
 end
