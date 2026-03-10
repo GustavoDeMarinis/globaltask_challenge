@@ -27,6 +27,7 @@ ENV MIX_ENV="prod"
 # Install mix dependencies
 COPY mix.exs mix.lock ./
 RUN mix deps.get --only $MIX_ENV
+RUN mix do tailwind.install --if-missing, esbuild.install --if-missing
 RUN mkdir config
 
 # Copy compile-time config files
@@ -36,9 +37,11 @@ RUN mix deps.compile
 # Copy application source
 COPY priv priv
 COPY lib lib
+COPY assets assets
 
-# Compile the application
+# Compile the application and pack assets
 RUN mix compile
+RUN mix assets.deploy
 
 # Build the release
 COPY config/runtime.exs config/
@@ -50,7 +53,7 @@ RUN mix release
 FROM ${RUNNER_IMAGE}
 
 RUN apt-get update -y && \
-    apt-get install -y libstdc++6 openssl libncurses5 locales ca-certificates && \
+    apt-get install -y libstdc++6 openssl libncurses5 locales ca-certificates curl && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
@@ -81,4 +84,5 @@ EXPOSE 4000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:4000/ || exit 1
 
-CMD ["bin/globaltask", "start"]
+# Automatically run pending migrations before starting the Phoenix Release
+CMD ["sh", "-c", "bin/globaltask eval 'Globaltask.Release.migrate()' && bin/globaltask start"]

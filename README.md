@@ -17,7 +17,22 @@ A fintech MVP for processing credit applications across multiple Latin American 
 - Docker & Docker Compose
 - Make
 
-## Quick Start
+## 🚀 Fast Track Evaluation (< 5 mins)
+
+To easily fulfill the evaluation environment requirement **without** installing Erlang, Elixir, or Node.js on your host machine (especially useful for Windows):
+
+```bash
+docker compose up --build
+```
+
+*(The container automatically compiles assets, connects to PostgreSQL, and runs Ecto migrations on boot).*
+
+> **App URL:** http://localhost:4000
+> **Admin Impersonation:** Click "Impersonate Admin" in the header to unlock evaluation controls.
+
+---
+
+## Local Development (Elixir Native)
 
 > **Important:** All commands must be run through the `Makefile`, which loads environment variables from `.env`. Running `mix phx.server` directly without sourcing `.env` will work in dev (defaults are set), but using `make run` is the recommended workflow.
 
@@ -88,8 +103,12 @@ lib/
 
 ## Docker
 
-- **Dev profile** (`docker compose --profile dev`): PostgreSQL only
-- **Full profile** (`docker compose --profile full`): PostgreSQL + Phoenix app (requires Dockerfile build)
+The project uses a single, native `docker-compose.yml` to spin up both the Phoenix application and its PostgreSQL database. Background migrations are ran automatically using the `Globaltask.Release` runtime module.
+
+To fully stop and remove the containers:
+```bash
+docker compose down -v
+```
 
 ## API Endpoints
 
