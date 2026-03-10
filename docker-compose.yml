@@ -12,13 +12,10 @@ services:
     volumes:
       - pg_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-globaltask}"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-globaltask} -d $${POSTGRES_DB:-globaltask_dev}"]
       interval: 5s
       timeout: 5s
       retries: 5
-    profiles:
-      - dev
-      - full
 
   app:
     build:
@@ -33,8 +30,6 @@ services:
       PHX_HOST: localhost
     ports:
       - "4000:4000"
-    profiles:
-      - full
 
 volumes:
   pg_data:

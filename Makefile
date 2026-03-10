@@ -1,5 +1,5 @@
 APP_NAME=globaltask
-DOCKER_COMPOSE=docker compose --profile dev
+DOCKER_COMPOSE=docker compose
 ENV_FILE=.env
 
 include $(ENV_FILE)
@@ -15,7 +15,7 @@ check-env:
 setup: check-env
 	$(DOCKER_COMPOSE) up -d
 	@echo "Waiting for PostgreSQL to be ready..."
-	@until docker compose --profile dev exec -T postgres pg_isready -U $(POSTGRES_USER) > /dev/null 2>&1; do sleep 1; done
+	@until docker compose exec -T postgres pg_isready -U $(POSTGRES_USER) > /dev/null 2>&1; do sleep 1; done
 	@echo "PostgreSQL is ready ✓"
 	mix setup
 

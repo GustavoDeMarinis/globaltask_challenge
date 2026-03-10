@@ -17,15 +17,31 @@ A fintech MVP for processing credit applications across multiple Latin American 
 - Docker & Docker Compose
 - Make
 
-## Quick Start
+## 🚀 Fast Track Evaluation (< 5 mins)
+
+To easily fulfill the evaluation environment requirement **without** installing Erlang, Elixir, or Node.js on your host machine (especially useful for Windows):
+
+```bash
+docker compose up --build
+```
+
+*(The container automatically compiles assets, connects to PostgreSQL, and runs Ecto migrations on boot).*
+
+> **App URL:** http://localhost:4000
+> **Admin Impersonation:** Click "Impersonate Admin" in the header to unlock evaluation controls.
+
+---
+
+## Local Development (Elixir Native)
 
 > **Important:** All commands must be run through the `Makefile`, which loads environment variables from `.env`. Running `mix phx.server` directly without sourcing `.env` will work in dev (defaults are set), but using `make run` is the recommended workflow.
 
 ```bash
 # 1. Copy and configure environment variables
 cp .env.example .env
-# Edit .env if you need to change defaults
-
+# Edit .env and generate a new SECRET_KEY_BASE by running:
+# docker compose run --rm app mix phx.gen.secret (if native Elixir is not installed)
+# or `mix phx.gen.secret` (if Elixir is installed)
 # 2. Setup everything (starts Docker, installs deps, creates/migrates DB)
 make setup
 
@@ -60,7 +76,7 @@ See `.env.example` for the full list. Key variables:
 | `POSTGRES_HOST` | PostgreSQL host | `localhost` |
 | `POSTGRES_DB` | Database name | `globaltask_dev` |
 | `DB_POOL_SIZE` | DB connection pool size | `10` |
-| `SECRET_KEY_BASE` | Phoenix secret key | — (generate with `mix phx.gen.secret`) |
+| `SECRET_KEY_BASE` | Phoenix secret key | — (generate with `mix phx.gen.secret` or `docker compose run --rm app mix phx.gen.secret`) |
 | `PHX_HOST` | Public hostname | `localhost` |
 | `PORT` | HTTP port | `4000` |
 
@@ -88,8 +104,12 @@ lib/
 
 ## Docker
 
-- **Dev profile** (`docker compose --profile dev`): PostgreSQL only
-- **Full profile** (`docker compose --profile full`): PostgreSQL + Phoenix app (requires Dockerfile build)
+The project uses a single, native `docker-compose.yml` to spin up both the Phoenix application and its PostgreSQL database. Background migrations are ran automatically using the `Globaltask.Release` runtime module.
+
+To fully stop and remove the containers:
+```bash
+docker compose down -v
+```
 
 ## API Endpoints
 
@@ -122,9 +142,9 @@ Globaltask uses `Oban` for robust, distributed job processing and `Telemetry` to
 
 ## 🖥️ Web UI & Real-Time Dashboard (Issue #6)
 
-This application includes a fully native, real-time reactive Web UI built using **Phoenix LiveView**, completely eliminating the need for bulky external Single Page Applications (SPAs) like React or Vue. 
+This application includes a real-time reactive Web UI built using **Phoenix LiveView**, which allows us to build interactive features without the need for an external Single Page Application (SPA). 
 
-By leveraging Elixir's intrinsic WebSocket channels and Erlang's lightweight processes, the UI instantly reflects modifications executed by async background workers without full-page reloads.
+By leveraging Elixir's WebSocket channels and Erlang's lightweight processes, the UI reflects modifications executed by async background workers without full-page reloads.
 
 ### Accessing the Interface
 
@@ -132,8 +152,8 @@ By leveraging Elixir's intrinsic WebSocket channels and Erlang's lightweight pro
 2. Open your browser and navigate to **http://localhost:4000/**.
 
 **Feature Highlights:**
-- **Asynchronous DOM Diffing:** Submit a form dynamically (`/applications/new`); validation runs securely on the Ecto models server-side, pushing back infinitesimal DOM patches.
-- **Background Ingestion Streams:** Click into a Credit Application whose status is `created`. As the `Oban` risk worker evaluates the application asynchronously, the UI will proactively morph its payload block from "Waiting..." to formatting the actual `provider_payload` in real-time.
+- **Server-side interactions:** Submit a form dynamically (`/applications/new`); validation runs securely on the Ecto models server-side, pushing back only the required DOM updates.
+- **Real-time updates:** Click into a Credit Application whose status is `created`. As the `Oban` risk worker evaluates the application asynchronously, the UI will update its payload block from "Waiting..." to formatting the actual `provider_payload` in real-time.
 
 ### 🔐 Admin Role & UI Security
 
@@ -144,8 +164,8 @@ To satisfy rigorous security boundaries, sensitive risk data and manual state ma
 2. Click the explicitly highlighted **"Impersonate Admin"** button in the header (or explicitly visit `/auth/impersonate?role=admin`).
 3. Click into an evaluation pending review to unlock and test manual approvals.
 
-### LiveView vs React Architecture Choice
-Building natively via LiveView is a deliberate architectural enhancement. Given Elixir's supreme concurrency primitives, separating the frontend into an external Node.js repository introduces unnecessary REST latency, CORS complexity, duplicated type/schema models, and heavily complicated deployment pipelines. LiveView is strictly superior for this bounded domain's MVP.
+### LiveView vs Separate Frontend
+Building natively via LiveView is a deliberate architectural choice. Given Elixir's concurrency primitives, separating the frontend into an external repository would introduce REST latency, CORS complexity, and duplicated type/schema models. LiveView is a highly effective choice for this MVP.
 ## Async Risk Evaluation Pipeline
 
 Globaltask features a robust asynchronous pipeline to fetch data from local bank providers and evaluate credit risk without blocking the API:
@@ -159,20 +179,20 @@ Globaltask features a robust asynchronous pipeline to fetch data from local bank
 Because the system utilizes `pg_notify` via PostgreSQL triggers, a cluster running multiple application pods will result in every pod receiving the notification event simultaneously. To prevent duplicate provider API calls, the background jobs rely on Oban's `unique:` configurations (`period: 60, states: [:available, :scheduled, :executing]`). This leverages database locks to guarantee that only one worker is ever enqueued for a specific credit application, avoiding race conditions and redundant API calls.
 
 ### Scalability Considerations (PgListener)
-Currently, a single `GenServer` (`PgListener`) handles incoming PostgreSQL notifications. While this is sufficient for moderate loads, extreme throughput (>1,000 req/sec) could overwhelm the single process inbox. Future scalability improvements could involve replacing the single listener with a dispatcher pool (e.g. `NimblePool`) or bypassing the listener entirely by having the API controllers perform batched `Oban.insert_all` directly.
+Currently, a single `GenServer` (`PgListener`) handles incoming PostgreSQL notifications. While this is sufficient for moderate loads, under very high concurrency it could become a bottleneck. Future scalability improvements could involve replacing the single listener with a dispatcher pool or bypassing the listener entirely by having the API controllers perform `Oban.insert_all` directly.
 
 ### Observability & Telemetry
-The async pipeline relies exclusively on decoupled background processes. Standard web APM monitoring will not capture the end-to-end duration of a credit decision. To monitor health and latency, the system should dispatch `:telemetry` events at key lifecycle transitions (e.g. `[:globaltask, :application, :created]` and `[:globaltask, :application, :evaluated]`). Alerting tools can consume these spans to monitor P99 evaluation delays and pipeline queue backpressure.
+The async pipeline relies on decoupled background processes. To monitor health and latency effectively across these processes, the system uses `:telemetry` events at key lifecycle transitions.
 
 ## Assumptions & Trade-offs
 
-- **Append-Only Audit Trail (Bonus Req)** — To satisfy the requirement for detailed change auditing, all state mutations in `CreditApplications.update_status/3` operate within an `Ecto.Multi` transaction. This synchronously inserts a record into the `credit_application_audit_logs` table, guaranteeing an immutable ledger tracking exactly *who* (`actor` = "system", "admin", etc.) changed the status, from what to what, and when.
-- **Metrics & Dashboards (Bonus Req)** — Rather than over-engineering a Grafana/Prometheus infrastructural setup for an MVP, this application incorporates the native Elixir **Phoenix LiveDashboard** (`/dev/dashboard` in development). Real-time telemetry on Erlang VM memory, active DB queries, active processes, and request latency are instantly accessible natively.
-- **Advanced Resilience (Bonus Req)** — Integrating fragile third-party Webhook providers is error-prone. Instead of writing custom Erlang circuit breakers, the platform delegates webhook delivery and background risk evaluations entirely to **Oban**. Oban automatically delivers persistent queues backed by PostgreSQL and uses exponential backoff retry mechanisms, making external communication structurally resilient to temporary outages out-of-the-box.
+- **Append-Only Audit Trail (Bonus Req)** — To satisfy the requirement for change auditing, state mutations operate within an `Ecto.Multi` transaction. This inserts a record into the `credit_application_audit_logs` table to track status changes.
+- **Metrics & Dashboards (Bonus Req)** — The application incorporates the native Elixir **Phoenix LiveDashboard** (`/dev/dashboard` in development) to monitor Erlang VM memory, active DB queries, and request latency.
+- **Advanced Resilience (Bonus Req)** — The platform delegates webhook delivery and background risk evaluations to **Oban**. Oban automatically provides queues backed by PostgreSQL and uses exponential backoff retry mechanisms for resilience against temporary external outages.
 
 - **Static Token Authority (MVP Authentication)** — To fulfill the requirement of securing PII without building a complex users table and RBAC management UI, the API uses a `/api/v1/auth/token` endpoint that generates signed JWTs natively. The `provider_payload` is gracefully stripped from JSON responses for any token without the explicit `admin` role.
 - **Webhook Delivery via Oban** — Webhooks are asynchronously dispatched for terminal state changes. Instead of implementing custom HMAC signatures or separate Webhook Log tables—which adds significant overhead for an MVP—the system relies entirely on Oban's native capabilities (`oban_jobs` table) for exponential backoff, retry history, and transactional enqueuing via `Ecto.Multi`. Redundant processing is naturally blocked by our DB state machine constraints.
-- **Memory-Bound Read-Through Caching** — Instead of introducing Redis for a simple `GET /id` cache, we rely on `Cachex` in the supervision tree. To signal senior-level awareness of production memory limits (OOMs), the cache is explicitly constrained by a hard `limit: 10_000` keys paired with an LRU eviction policy. Invalidation automatically occurs upon any mutation.
+- **In-Memory Caching** — Instead of introducing Redis for a simple cache, we rely on `Cachex` in the supervision tree. To prevent unbounded memory growth, the cache is explicitly constrained by a hard `limit: 10_000` keys paired with an LRU eviction policy. Invalidation automatically occurs upon mutation.
 - **Global state machine** — status transitions (`created → pending_review → approved/rejected`) are the same for all countries. Country-specific rules validate documents and enforce business thresholds but do not alter the transition graph.
 - **Country dictates document type** — each country maps to exactly one required document type (e.g., ES → DNI, BR → CPF). The country field determines which validation rules apply.
 - **Denormalized applicant data** — each application stores name, document type, and document number directly rather than referencing a normalized `applicants` table. This captures a snapshot of the applicant's data at application time.

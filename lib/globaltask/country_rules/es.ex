@@ -18,7 +18,6 @@ defmodule Globaltask.CountryRules.ES do
 
   import Ecto.Changeset
 
-  @dni_control_letters "TRWAGMYFPDXBNJZSQVHLCKE"
   @review_threshold Decimal.new("50000")
 
   @approve_threshold 700
