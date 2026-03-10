@@ -39,8 +39,9 @@ docker compose up --build
 ```bash
 # 1. Copy and configure environment variables
 cp .env.example .env
-# Edit .env if you need to change defaults
-
+# Edit .env and generate a new SECRET_KEY_BASE by running:
+# docker compose run --rm app mix phx.gen.secret (if native Elixir is not installed)
+# or `mix phx.gen.secret` (if Elixir is installed)
 # 2. Setup everything (starts Docker, installs deps, creates/migrates DB)
 make setup
 
@@ -75,7 +76,7 @@ See `.env.example` for the full list. Key variables:
 | `POSTGRES_HOST` | PostgreSQL host | `localhost` |
 | `POSTGRES_DB` | Database name | `globaltask_dev` |
 | `DB_POOL_SIZE` | DB connection pool size | `10` |
-| `SECRET_KEY_BASE` | Phoenix secret key | — (generate with `mix phx.gen.secret`) |
+| `SECRET_KEY_BASE` | Phoenix secret key | — (generate with `mix phx.gen.secret` or `docker compose run --rm app mix phx.gen.secret`) |
 | `PHX_HOST` | Public hostname | `localhost` |
 | `PORT` | HTTP port | `4000` |
 
