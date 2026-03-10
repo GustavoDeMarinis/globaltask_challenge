@@ -43,7 +43,11 @@ defmodule Globaltask.CountryRules.PTTest do
       refute changeset.errors[:document_number]
     end
 
-
+    test "invalid NIF — incorrect check digit" do
+      # 123456789 is valid, meaning 123456788 is structurally valid but mathematically invalid
+      changeset = build_changeset(%{"document_number" => "123456788"}) |> PT.validate_document()
+      assert %{document_number: ["invalid NIF format or check digit"]} = errors_on(changeset)
+    end
 
     test "invalid NIF — wrong length (too short)" do
       changeset = build_changeset(%{"document_number" => "12345678"}) |> PT.validate_document()

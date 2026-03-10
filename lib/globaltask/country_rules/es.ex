@@ -81,6 +81,18 @@ defmodule Globaltask.CountryRules.ES do
   @spec valid_dni?(String.t()) :: boolean()
   defp valid_dni?(doc_number) do
     trimmed = String.trim(doc_number)
-    Regex.match?(~r/^[0-9]{8}[A-HJ-NP-TV-Z]$/i, trimmed)
+
+    if Regex.match?(~r/^[0-9]{8}[A-HJ-NP-TV-Z]$/i, trimmed) do
+      # Calculate the DNI control letter
+      number_part = String.slice(trimmed, 0..7) |> String.to_integer()
+      letter_part = String.slice(trimmed, 8..8) |> String.upcase()
+
+      control_letters = "TRWAGMYFPDXBNJZSQVHLCKE"
+      expected_letter = String.at(control_letters, rem(number_part, 23))
+
+      letter_part == expected_letter
+    else
+      false
+    end
   end
 end

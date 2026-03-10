@@ -60,6 +60,29 @@ defmodule Globaltask.CountryRules.PT do
   @spec valid_nif?(String.t()) :: boolean()
   defp valid_nif?(doc_number) do
     trimmed = String.trim(doc_number)
-    Regex.match?(~r/^\d{9}$/, trimmed)
+
+    if Regex.match?(~r/^\d{9}$/, trimmed) do
+      # Calculate NIF checksum (mod 11 weighted sum)
+      digits =
+        trimmed
+        |> String.graphemes()
+        |> Enum.map(&String.to_integer/1)
+
+      check_digit = List.last(digits)
+
+      # The first 8 digits multiplied by weights from 9 down to 2
+      sum =
+        digits
+        |> Enum.take(8)
+        |> Enum.zip([9, 8, 7, 6, 5, 4, 3, 2])
+        |> Enum.reduce(0, fn {digit, weight}, acc -> acc + digit * weight end)
+
+      remainder = rem(sum, 11)
+      expected_check_digit = if remainder < 2, do: 0, else: 11 - remainder
+
+      check_digit == expected_check_digit
+    else
+      false
+    end
   end
 end
