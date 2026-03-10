@@ -8,7 +8,7 @@ defmodule Globaltask.BankProvider.ES do
   ## Response shape
 
       %{
-        credit_score: 600..850,
+        credit_score: 400..850,
         annual_income_verified: boolean()
       }
   """
@@ -25,7 +25,7 @@ defmodule Globaltask.BankProvider.ES do
 
     {:ok,
      %{
-       credit_score: rem(hash, 251) + 600,
+       credit_score: rem(hash, 451) + 400,
        annual_income_verified: rem(hash, 2) == 0
      }}
   end

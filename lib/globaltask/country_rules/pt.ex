@@ -55,6 +55,22 @@ defmodule Globaltask.CountryRules.PT do
     end
   end
 
+  # -- Risk evaluation --
+
+  @impl true
+  @spec evaluate_risk(%Globaltask.CreditApplications.CreditApplication{}) ::
+          :approve | :reject | :review | :skip
+  def evaluate_risk(%{provider_payload: %{"risk_class" => risk_class}}) do
+    case risk_class do
+      "A" -> :approve
+      "B" -> :review
+      "C" -> :reject
+      _ -> :reject
+    end
+  end
+
+  def evaluate_risk(_app), do: :skip
+
   # -- Private helpers --
 
   @spec valid_nif?(String.t()) :: boolean()

@@ -98,4 +98,28 @@ defmodule Globaltask.CountryRules.PTTest do
       refute changeset.errors[:requested_amount]
     end
   end
+
+  # -- evaluate_risk/1 --
+
+  describe "evaluate_risk/1" do
+    test "A is approved" do
+      app = %CreditApplication{provider_payload: %{"risk_class" => "A"}}
+      assert PT.evaluate_risk(app) == :approve
+    end
+
+    test "B is reviewed" do
+      app = %CreditApplication{provider_payload: %{"risk_class" => "B"}}
+      assert PT.evaluate_risk(app) == :review
+    end
+
+    test "C is rejected" do
+      app = %CreditApplication{provider_payload: %{"risk_class" => "C"}}
+      assert PT.evaluate_risk(app) == :reject
+    end
+
+    test "skips evaluation when provider payload is invalid" do
+      app = %CreditApplication{provider_payload: %{}}
+      assert PT.evaluate_risk(app) == :skip
+    end
+  end
 end
