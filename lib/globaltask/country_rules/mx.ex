@@ -28,13 +28,59 @@ defmodule Globaltask.CountryRules.MX do
     case get_field(changeset, :document_number) do
       nil -> changeset
       doc_number ->
-        trimmed = String.trim(doc_number)
-
-        if Regex.match?(@curp_regex, trimmed) do
+        if valid_curp?(doc_number) do
           changeset
         else
-          add_error(changeset, :document_number, "invalid CURP format")
+          add_error(changeset, :document_number, "invalid CURP format or check digit")
         end
+    end
+  end
+
+  # -- Private helpers --
+
+  @spec valid_curp?(String.t()) :: boolean()
+  defp valid_curp?(doc_number) do
+    trimmed = String.trim(doc_number) |> String.upcase()
+
+    if Regex.match?(@curp_regex, trimmed) do
+      chars = String.graphemes(trimmed)
+      {body_chars, [control_char]} = Enum.split(chars, 17)
+
+      sum =
+        body_chars
+        |> Enum.with_index(0)
+        |> Enum.reduce(0, fn {char, index}, acc ->
+          weight = 18 - index
+          acc + curp_value(char) * weight
+        end)
+
+      remainder = rem(sum, 10)
+
+      expected_control_digit =
+        if remainder == 0 do
+          0
+        else
+          10 - remainder
+        end
+        |> Integer.to_string()
+
+      control_char == expected_control_digit
+    else
+      false
+    end
+  end
+
+  # Base-36 value assignment for CURP calculation
+  # '0'-'9' -> 0-9
+  # 'A'-'Z' -> 10-35
+  # Note: The letter 'Ñ' (rare in ID check logic) is given value 33 in MX law,
+  # but standard regex `A-Z` covers standard A-Z 26 letter english alphabet chars.
+  defp curp_value(c) do
+    if Regex.match?(~r/\d/, c) do
+      String.to_integer(c)
+    else
+      <<code::utf8>> = c
+      code - ?A + 10
     end
   end
 

@@ -42,7 +42,22 @@ defmodule Globaltask.CountryRules.BRTest do
       refute changeset.errors[:document_number]
     end
 
+    test "valid CPF passes with punctuation" do
+      # Our logic strips formatting
+      changeset = build_changeset(%{"document_number" => "111.444.777-35"}) |> BR.validate_document()
+      refute changeset.errors[:document_number]
+    end
 
+    test "invalid CPF — incorrect check digits but structurally valid" do
+      # 11144477735 is valid, so 11144477734 fails the math check
+      changeset = build_changeset(%{"document_number" => "11144477734"}) |> BR.validate_document()
+      assert %{document_number: ["invalid CPF format or check digits"]} = errors_on(changeset)
+    end
+
+    test "invalid CPF — all identical digits rejected" do
+      changeset = build_changeset(%{"document_number" => "11111111111"}) |> BR.validate_document()
+      assert %{document_number: ["invalid CPF format or check digits"]} = errors_on(changeset)
+    end
 
     test "invalid CPF — wrong length (too short)" do
       changeset = build_changeset(%{"document_number" => "5299822472"}) |> BR.validate_document()

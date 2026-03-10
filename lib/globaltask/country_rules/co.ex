@@ -27,10 +27,12 @@ defmodule Globaltask.CountryRules.CO do
     case get_field(changeset, :document_number) do
       nil -> changeset
       doc_number ->
-        trimmed = String.trim(doc_number)
+        # CO IDs are often formatted with dots (e.g. 1.234.567)
+        trimmed = String.replace(doc_number, ~r/[^\d]/, "")
 
         if Regex.match?(@cc_regex, trimmed) do
-          changeset
+          # Return the changeset with the sanitized number so later checks pass cleanly
+          put_change(changeset, :document_number, trimmed)
         else
           add_error(changeset, :document_number, "invalid CC format (expected 6–10 digits)")
         end

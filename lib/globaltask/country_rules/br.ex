@@ -61,8 +61,48 @@ defmodule Globaltask.CountryRules.BR do
 
   @spec valid_cpf?(String.t()) :: boolean()
   defp valid_cpf?(doc_number) do
-    trimmed = String.trim(doc_number)
-    Regex.match?(~r/^\d{11}$/, trimmed)
+    # Remove formatting (., -) and trim whitespace
+    clean_cpf = String.replace(doc_number, ~r/[^\d]/, "")
+
+    cond do
+      # Must be exactly 11 digits
+      String.length(clean_cpf) != 11 ->
+        false
+
+      # Reject known invalid sequences that pass the mathematical check (e.g. 11111111111)
+      all_same_digits?(clean_cpf) ->
+        false
+
+      true ->
+        digits =
+          clean_cpf
+          |> String.graphemes()
+          |> Enum.map(&String.to_integer/1)
+
+        [d1, d2, d3, d4, d5, d6, d7, d8, d9, check1, check2] = digits
+
+        # Calculate first check digit (weights 10 down to 2)
+        sum1 =
+          d1 * 10 + d2 * 9 + d3 * 8 + d4 * 7 + d5 * 6 + d6 * 5 + d7 * 4 + d8 * 3 + d9 * 2
+
+        rem1 = rem(sum1 * 10, 11)
+        expected_check1 = if rem1 == 10, do: 0, else: rem1
+
+        # Calculate second check digit (weights 11 down to 2)
+        sum2 =
+          d1 * 11 + d2 * 10 + d3 * 9 + d4 * 8 + d5 * 7 + d6 * 6 + d7 * 5 + d8 * 4 + d9 * 3 +
+            expected_check1 * 2
+
+        rem2 = rem(sum2 * 10, 11)
+        expected_check2 = if rem2 == 10, do: 0, else: rem2
+
+        check1 == expected_check1 and check2 == expected_check2
+    end
+  end
+
+  defp all_same_digits?(cpf) do
+    first_char = String.at(cpf, 0)
+    String.duplicate(first_char, 11) == cpf
   end
 
   # -- Risk evaluation --

@@ -64,6 +64,11 @@ defmodule Globaltask.CountryRules.COTest do
       changeset = build_changeset(%{"document_number" => "  1234567890  "}) |> CO.validate_document()
       refute changeset.errors[:document_number]
     end
+
+    test "valid CC — punctuation formatting stripped" do
+      changeset = build_changeset(%{"document_number" => "1.234.567"}) |> CO.validate_document()
+      refute changeset.errors[:document_number]
+    end
   end
 
   # -- validate_business_rules/1 --
