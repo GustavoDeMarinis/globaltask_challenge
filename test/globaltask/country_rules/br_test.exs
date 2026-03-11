@@ -42,7 +42,22 @@ defmodule Globaltask.CountryRules.BRTest do
       refute changeset.errors[:document_number]
     end
 
+    test "valid CPF passes with punctuation" do
+      # Our logic strips formatting
+      changeset = build_changeset(%{"document_number" => "111.444.777-35"}) |> BR.validate_document()
+      refute changeset.errors[:document_number]
+    end
 
+    test "invalid CPF — incorrect check digits but structurally valid" do
+      # 11144477735 is valid, so 11144477734 fails the math check
+      changeset = build_changeset(%{"document_number" => "11144477734"}) |> BR.validate_document()
+      assert %{document_number: ["invalid CPF format or check digits"]} = errors_on(changeset)
+    end
+
+    test "invalid CPF — all identical digits rejected" do
+      changeset = build_changeset(%{"document_number" => "11111111111"}) |> BR.validate_document()
+      assert %{document_number: ["invalid CPF format or check digits"]} = errors_on(changeset)
+    end
 
     test "invalid CPF — wrong length (too short)" do
       changeset = build_changeset(%{"document_number" => "5299822472"}) |> BR.validate_document()
@@ -83,6 +98,30 @@ defmodule Globaltask.CountryRules.BRTest do
     test "amount exceeding 5× income fails" do
       changeset = build_changeset(%{"requested_amount" => 15_001, "monthly_income" => 3000}) |> BR.validate_business_rules()
       assert %{requested_amount: [_]} = errors_on(changeset)
+    end
+  end
+
+  # -- evaluate_risk/1 --
+
+  describe "evaluate_risk/1" do
+    test "score >= 600 is approved" do
+      app = %CreditApplication{provider_payload: %{"serasa_score" => 650}}
+      assert BR.evaluate_risk(app) == :approve
+    end
+
+    test "score between 400 and 599 is reviewed" do
+      app = %CreditApplication{provider_payload: %{"serasa_score" => 500}}
+      assert BR.evaluate_risk(app) == :review
+    end
+
+    test "score < 400 is rejected" do
+      app = %CreditApplication{provider_payload: %{"serasa_score" => 350}}
+      assert BR.evaluate_risk(app) == :reject
+    end
+
+    test "skips evaluation when provider payload is invalid" do
+      app = %CreditApplication{provider_payload: %{}}
+      assert BR.evaluate_risk(app) == :skip
     end
   end
 end

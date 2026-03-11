@@ -64,6 +64,11 @@ defmodule Globaltask.CountryRules.COTest do
       changeset = build_changeset(%{"document_number" => "  1234567890  "}) |> CO.validate_document()
       refute changeset.errors[:document_number]
     end
+
+    test "valid CC — punctuation formatting stripped" do
+      changeset = build_changeset(%{"document_number" => "1.234.567"}) |> CO.validate_document()
+      refute changeset.errors[:document_number]
+    end
   end
 
   # -- validate_business_rules/1 --
@@ -72,6 +77,30 @@ defmodule Globaltask.CountryRules.COTest do
     test "placeholder rule always passes" do
       changeset = build_changeset(%{"requested_amount" => 999_999}) |> CO.validate_business_rules()
       refute changeset.errors[:requested_amount]
+    end
+  end
+
+  # -- evaluate_risk/1 --
+
+  describe "evaluate_risk/1" do
+    test "ratio <= 0.3 is approved" do
+      app = %CreditApplication{provider_payload: %{"total_debt" => "300"}, monthly_income: Decimal.new("1000")}
+      assert CO.evaluate_risk(app) == :approve
+    end
+
+    test "ratio between 0.3 and 0.4 is reviewed" do
+      app = %CreditApplication{provider_payload: %{"total_debt" => "400"}, monthly_income: Decimal.new("1000")}
+      assert CO.evaluate_risk(app) == :review
+    end
+
+    test "ratio > 0.4 is rejected" do
+      app = %CreditApplication{provider_payload: %{"total_debt" => "500"}, monthly_income: Decimal.new("1000")}
+      assert CO.evaluate_risk(app) == :reject
+    end
+
+    test "skips evaluation when provider payload is invalid" do
+      app = %CreditApplication{provider_payload: %{}, monthly_income: Decimal.new("1000")}
+      assert CO.evaluate_risk(app) == :skip
     end
   end
 end

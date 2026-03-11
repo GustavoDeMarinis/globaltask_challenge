@@ -13,7 +13,8 @@ defmodule Globaltask.CountryRules.MXTest do
       "country" => "MX",
       "full_name" => "Carlos López",
       "document_type" => "CURP",
-      "document_number" => "LOPC900101HDFRRL09",
+      # Valid CURP checksum
+      "document_number" => "OASR871212HDFRRN01",
       "requested_amount" => 10_000,
       "monthly_income" => 5000,
       "application_date" => "2026-03-04"
@@ -31,32 +32,39 @@ defmodule Globaltask.CountryRules.MXTest do
 
   describe "validate_document/1" do
     test "valid CURP passes validation" do
-      changeset = build_changeset() |> MX.validate_document()
+      changeset = build_changeset(%{"document_number" => "OASR871212HDFRRN01"}) |> MX.validate_document()
       refute changeset.errors[:document_number]
     end
 
     test "valid CURP with female gender marker" do
-      changeset = build_changeset(%{"document_number" => "LOPC900101MDFRRL09"}) |> MX.validate_document()
+      # Evaluated via same script: OASR871212MDFRRN01 maps mathematically correctly for M
+      changeset = build_changeset(%{"document_number" => "OASR871212MDFRRN01"}) |> MX.validate_document()
       refute changeset.errors[:document_number]
     end
 
+    test "invalid CURP — incorrect check digit" do
+      # OASR871212HDFRRN01 is mathematically correct, so OASR871212HDFRRN05 fails the math checks
+      changeset = build_changeset(%{"document_number" => "OASR871212HDFRRN05"}) |> MX.validate_document()
+      assert %{document_number: ["invalid CURP format or check digit"]} = errors_on(changeset)
+    end
+
     test "invalid CURP — wrong length" do
-      changeset = build_changeset(%{"document_number" => "LOPC900101HDFRRL0"}) |> MX.validate_document()
+      changeset = build_changeset(%{"document_number" => "OASR871212HDFRRN0"}) |> MX.validate_document()
       assert %{document_number: [_]} = errors_on(changeset)
     end
 
     test "invalid CURP — bad gender char (X instead of H/M)" do
-      changeset = build_changeset(%{"document_number" => "LOPC900101XDFRRL09"}) |> MX.validate_document()
+      changeset = build_changeset(%{"document_number" => "OASR871212XDFRRN01"}) |> MX.validate_document()
       assert %{document_number: [_]} = errors_on(changeset)
     end
 
     test "invalid CURP — whitespace trimmed" do
-      changeset = build_changeset(%{"document_number" => "  LOPC900101HDFRRL09  "}) |> MX.validate_document()
+      changeset = build_changeset(%{"document_number" => "  OASR871212HDFRRN01  "}) |> MX.validate_document()
       refute changeset.errors[:document_number]
     end
 
     test "invalid CURP — lowercase accepted" do
-      changeset = build_changeset(%{"document_number" => "lopc900101hdfrrl09"}) |> MX.validate_document()
+      changeset = build_changeset(%{"document_number" => "oasr871212hdfrrn01"}) |> MX.validate_document()
       refute changeset.errors[:document_number]
     end
   end
@@ -77,6 +85,30 @@ defmodule Globaltask.CountryRules.MXTest do
     test "amount exactly at 3× income passes" do
       changeset = build_changeset(%{"requested_amount" => 15_000, "monthly_income" => 5000}) |> MX.validate_business_rules()
       refute changeset.errors[:requested_amount]
+    end
+  end
+
+  # -- evaluate_risk/1 --
+
+  describe "evaluate_risk/1" do
+    test "score >= 650 is approved" do
+      app = %CreditApplication{provider_payload: %{"buro_score" => 700}}
+      assert MX.evaluate_risk(app) == :approve
+    end
+
+    test "score between 500 and 649 is reviewed" do
+      app = %CreditApplication{provider_payload: %{"buro_score" => 600}}
+      assert MX.evaluate_risk(app) == :review
+    end
+
+    test "score < 500 is rejected" do
+      app = %CreditApplication{provider_payload: %{"buro_score" => 450}}
+      assert MX.evaluate_risk(app) == :reject
+    end
+
+    test "skips evaluation when provider payload is invalid" do
+      app = %CreditApplication{provider_payload: %{}}
+      assert MX.evaluate_risk(app) == :skip
     end
   end
 end

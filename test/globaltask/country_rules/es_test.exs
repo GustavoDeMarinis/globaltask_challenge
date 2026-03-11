@@ -43,9 +43,11 @@ defmodule Globaltask.CountryRules.ESTest do
       changeset = build_changeset(%{"document_number" => "00000000T"}) |> ES.validate_document()
       refute changeset.errors[:document_number]
     end
-
-
-
+    test "invalid DNI — incorrect control letter" do
+      # 12345678Z is valid, meaning 12345678A is structurally valid but mathematically invalid
+      changeset = build_changeset(%{"document_number" => "12345678A"}) |> ES.validate_document()
+      assert %{document_number: ["invalid DNI format or control letter"]} = errors_on(changeset)
+    end
     test "invalid DNI — wrong length (too short)" do
       changeset = build_changeset(%{"document_number" => "1234567Z"}) |> ES.validate_document()
       assert %{document_number: [_]} = errors_on(changeset)

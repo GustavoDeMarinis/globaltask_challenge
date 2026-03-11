@@ -43,7 +43,11 @@ defmodule Globaltask.CountryRules.PTTest do
       refute changeset.errors[:document_number]
     end
 
-
+    test "invalid NIF — incorrect check digit" do
+      # 123456789 is valid, meaning 123456788 is structurally valid but mathematically invalid
+      changeset = build_changeset(%{"document_number" => "123456788"}) |> PT.validate_document()
+      assert %{document_number: ["invalid NIF format or check digit"]} = errors_on(changeset)
+    end
 
     test "invalid NIF — wrong length (too short)" do
       changeset = build_changeset(%{"document_number" => "12345678"}) |> PT.validate_document()
@@ -92,6 +96,30 @@ defmodule Globaltask.CountryRules.PTTest do
     test "amount exactly at 4× income passes" do
       changeset = build_changeset(%{"requested_amount" => 12_000, "monthly_income" => 3000}) |> PT.validate_business_rules()
       refute changeset.errors[:requested_amount]
+    end
+  end
+
+  # -- evaluate_risk/1 --
+
+  describe "evaluate_risk/1" do
+    test "A is approved" do
+      app = %CreditApplication{provider_payload: %{"risk_class" => "A"}}
+      assert PT.evaluate_risk(app) == :approve
+    end
+
+    test "B is reviewed" do
+      app = %CreditApplication{provider_payload: %{"risk_class" => "B"}}
+      assert PT.evaluate_risk(app) == :review
+    end
+
+    test "C is rejected" do
+      app = %CreditApplication{provider_payload: %{"risk_class" => "C"}}
+      assert PT.evaluate_risk(app) == :reject
+    end
+
+    test "skips evaluation when provider payload is invalid" do
+      app = %CreditApplication{provider_payload: %{}}
+      assert PT.evaluate_risk(app) == :skip
     end
   end
 end

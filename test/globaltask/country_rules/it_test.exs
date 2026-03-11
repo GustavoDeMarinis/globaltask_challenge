@@ -13,7 +13,7 @@ defmodule Globaltask.CountryRules.ITTest do
       "country" => "IT",
       "full_name" => "Marco Rossi",
       "document_type" => "CodiceFiscale",
-      "document_number" => "RSSMRC90A01H501A",
+      "document_number" => "RSSMRC90A01H501Y",
       "requested_amount" => 10_000,
       "monthly_income" => 2000,
       "application_date" => "2026-03-04"
@@ -36,8 +36,14 @@ defmodule Globaltask.CountryRules.ITTest do
     end
 
     test "valid Codice Fiscale — lowercase accepted" do
-      changeset = build_changeset(%{"document_number" => "rssmrc90a01h501a"}) |> IT.validate_document()
+      changeset = build_changeset(%{"document_number" => "rssmrc90a01h501y"}) |> IT.validate_document()
       refute changeset.errors[:document_number]
+    end
+
+    test "invalid Codice Fiscale — incorrect check digit" do
+      # RSSMRC90A01H501Y is valid, meaning RSSMRC90A01H501B fails the math check
+      changeset = build_changeset(%{"document_number" => "RSSMRC90A01H501B"}) |> IT.validate_document()
+      assert %{document_number: ["invalid Codice Fiscale format or check digit"]} = errors_on(changeset)
     end
 
     test "invalid Codice Fiscale — wrong length" do
@@ -46,17 +52,17 @@ defmodule Globaltask.CountryRules.ITTest do
     end
 
     test "invalid Codice Fiscale — bad structure (digits where letters expected)" do
-      changeset = build_changeset(%{"document_number" => "123MRC90A01H501A"}) |> IT.validate_document()
+      changeset = build_changeset(%{"document_number" => "123MRC90A01H501Y"}) |> IT.validate_document()
       assert %{document_number: [_]} = errors_on(changeset)
     end
 
     test "invalid Codice Fiscale — too long" do
-      changeset = build_changeset(%{"document_number" => "RSSMRC90A01H501AB"}) |> IT.validate_document()
+      changeset = build_changeset(%{"document_number" => "RSSMRC90A01H501YB"}) |> IT.validate_document()
       assert %{document_number: [_]} = errors_on(changeset)
     end
 
     test "invalid Codice Fiscale — whitespace trimmed" do
-      changeset = build_changeset(%{"document_number" => "  RSSMRC90A01H501A  "}) |> IT.validate_document()
+      changeset = build_changeset(%{"document_number" => "  RSSMRC90A01H501Y  "}) |> IT.validate_document()
       refute changeset.errors[:document_number]
     end
   end
@@ -77,6 +83,35 @@ defmodule Globaltask.CountryRules.ITTest do
     test "income below threshold fails" do
       changeset = build_changeset(%{"monthly_income" => 799}) |> IT.validate_business_rules()
       assert %{monthly_income: [_]} = errors_on(changeset)
+    end
+  end
+
+  # -- evaluate_risk/1 --
+
+  describe "evaluate_risk/1" do
+    test "stable is approved" do
+      app = %CreditApplication{provider_payload: %{"financial_stability" => "stable"}}
+      assert IT.evaluate_risk(app) == :approve
+    end
+
+    test "moderate is reviewed" do
+      app = %CreditApplication{provider_payload: %{"financial_stability" => "moderate"}}
+      assert IT.evaluate_risk(app) == :review
+    end
+
+    test "at_risk is rejected" do
+      app = %CreditApplication{provider_payload: %{"financial_stability" => "at_risk"}}
+      assert IT.evaluate_risk(app) == :reject
+    end
+
+    test "unknown stability is rejected" do
+      app = %CreditApplication{provider_payload: %{"financial_stability" => "unknown"}}
+      assert IT.evaluate_risk(app) == :reject
+    end
+
+    test "skips evaluation when provider payload is missing financial_stability" do
+      app = %CreditApplication{provider_payload: %{}}
+      assert IT.evaluate_risk(app) == :skip
     end
   end
 end

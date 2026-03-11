@@ -266,7 +266,7 @@ Country rules implement a **strategy pattern** using Elixir behaviours. Each cou
 | 🇵🇹 PT | NIF | 9 digits + weighted check digit (mod 11) | Amount ≤ 4× monthly income |
 | 🇮🇹 IT | CodiceFiscale | 16-char alphanumeric regex | Minimum income ≥ €800 |
 | 🇲🇽 MX | CURP | 18-char format with gender marker | Amount ≤ 3× monthly income |
-| 🇨🇴 CO | CC | 6–10 digits | Pass-through (deferred to Issue #4) |
+| 🇨🇴 CO | CC | 6–10 digits | N/A (Debt-to-Income ratio evaluated asynchronously) |
 | 🇧🇷 BR | CPF | 11 digits + two check digits (mod 11) | Amount ≤ 5× monthly income |
 
 **Architecture:**
