@@ -2,7 +2,7 @@
 
 > **Portfolio showcase** — a fintech-grade MVP demonstrating end-to-end Elixir/Phoenix architecture: country-specific business rules, async risk evaluation pipelines backed by PostgreSQL triggers and Oban, real-time LiveView dashboards, append-only audit trails, role-based API security, and Docker-first deployment.
 
-MCCAP processes credit applications across multiple Latin American and European countries (🇪🇸 ES, 🇵🇹 PT, 🇮🇹 IT, 🇲🇽 MX, 🇨🇴 CO, 🇧🇷 BR), each with its own document validation and underwriting rules. It is built as a single Elixir/Phoenix application that leans on the BEAM's concurrency primitives instead of bolting on extra infrastructure.
+MCCAP processes credit applications across multiple Latin American and European countries (ES, PT, IT, MX, CO, BR), each with its own document validation and underwriting rules. It is built as a single Elixir/Phoenix application that leans on the BEAM's concurrency primitives instead of bolting on extra infrastructure.
 
 ## Tech Stack
 
@@ -19,7 +19,7 @@ MCCAP processes credit applications across multiple Latin American and European 
 - Docker & Docker Compose
 - Make
 
-## 🚀 Quick Start with Docker (< 5 mins)
+## Quick Start with Docker (< 5 mins)
 
 To run the full stack **without** installing Erlang, Elixir, or Node.js on your host machine (especially useful on Windows):
 
@@ -143,7 +143,7 @@ Mccap uses `Oban` for robust, distributed job processing and `Telemetry` to inst
 
 ---
 
-## 🖥️ Web UI & Real-Time Dashboard
+## Web UI & Real-Time Dashboard
 
 This application includes a real-time reactive Web UI built using **Phoenix LiveView**, which allows us to build interactive features without the need for an external Single Page Application (SPA). 
 
@@ -158,7 +158,7 @@ By leveraging Elixir's WebSocket channels and Erlang's lightweight processes, th
 - **Server-side interactions:** Submit a form dynamically (`/applications/new`); validation runs securely on the Ecto models server-side, pushing back only the required DOM updates.
 - **Real-time updates:** Click into a Credit Application whose status is `created`. As the `Oban` risk worker evaluates the application asynchronously, the UI will update its payload block from "Waiting..." to formatting the actual `provider_payload` in real-time.
 
-### 🔐 Admin Role & UI Security
+### Admin Role & UI Security
 
 To satisfy rigorous security boundaries, sensitive risk data and manual state machine controls (Approve/Reject) are guarded against standard clients. Authenticity is managed via a dedicated `live_session` pipeline enforcing cookie signatures injected during the WebSocket mount handshake.
 
@@ -265,12 +265,12 @@ Country rules implement a **strategy pattern** using Elixir behaviours. Each cou
 
 | Country | Document Type | Document Validation | Business Rule |
 |---|---|---|---|
-| 🇪🇸 ES | DNI | 8 digits + control letter (mod 23) | Amount > €50,000 → auto `pending_review` |
-| 🇵🇹 PT | NIF | 9 digits + weighted check digit (mod 11) | Amount ≤ 4× monthly income |
-| 🇮🇹 IT | CodiceFiscale | 16-char alphanumeric regex | Minimum income ≥ €800 |
-| 🇲🇽 MX | CURP | 18-char format with gender marker | Amount ≤ 3× monthly income |
-| 🇨🇴 CO | CC | 6–10 digits | N/A (Debt-to-Income ratio evaluated asynchronously) |
-| 🇧🇷 BR | CPF | 11 digits + two check digits (mod 11) | Amount ≤ 5× monthly income |
+| ES | DNI | 8 digits + control letter (mod 23) | Amount > €50,000 → auto `pending_review` |
+| PT | NIF | 9 digits + weighted check digit (mod 11) | Amount ≤ 4× monthly income |
+| IT | CodiceFiscale | 16-char alphanumeric regex | Minimum income ≥ €800 |
+| MX | CURP | 18-char format with gender marker | Amount ≤ 3× monthly income |
+| CO | CC | 6–10 digits | N/A (Debt-to-Income ratio evaluated asynchronously) |
+| BR | CPF | 11 digits + two check digits (mod 11) | Amount ≤ 5× monthly income |
 
 **Architecture:**
 

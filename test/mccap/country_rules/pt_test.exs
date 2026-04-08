@@ -32,7 +32,7 @@ defmodule Mccap.CountryRules.PTTest do
   describe "validate_document/1" do
     test "valid NIF passes validation" do
       # 123456789: weighted sum = 1*9+2*8+3*7+4*6+5*5+6*4+7*3+8*2 = 9+16+21+24+25+24+21+16 = 156
-      # 156 rem 11 = 2 → expected = 11 - 2 = 9 ✓
+      # 156 rem 11 = 2 -> expected = 11 - 2 = 9
       changeset = build_changeset() |> PT.validate_document()
       refute changeset.errors[:document_number]
     end
