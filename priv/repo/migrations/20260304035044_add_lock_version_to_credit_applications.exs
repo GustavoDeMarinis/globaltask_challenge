@@ -1,4 +1,4 @@
-defmodule Globaltask.Repo.Migrations.AddLockVersionToCreditApplications do
+defmodule Mccap.Repo.Migrations.AddLockVersionToCreditApplications do
   use Ecto.Migration
 
   def change do

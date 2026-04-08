@@ -7,30 +7,30 @@
 # General application configuration
 import Config
 
-config :globaltask,
-  ecto_repos: [Globaltask.Repo],
+config :mccap,
+  ecto_repos: [Mccap.Repo],
   generators: [timestamp_type: :utc_datetime, binary_id: true]
 
 # Configures the endpoint
-config :globaltask, GlobaltaskWeb.Endpoint,
+config :mccap, MccapWeb.Endpoint,
   url: [host: "localhost"],
   adapter: Bandit.PhoenixAdapter,
   render_errors: [
-    formats: [html: GlobaltaskWeb.ErrorHTML, json: GlobaltaskWeb.ErrorJSON],
+    formats: [html: MccapWeb.ErrorHTML, json: MccapWeb.ErrorJSON],
     layout: false
   ],
-  pubsub_server: Globaltask.PubSub,
+  pubsub_server: Mccap.PubSub,
   live_view: [signing_salt: "Iwzlz1py"]
 
-config :globaltask, Oban,
-  repo: Globaltask.Repo,
+config :mccap, Oban,
+  repo: Mccap.Repo,
   queues: [default: 10, provider_fetch: 10, risk_evaluation: 5, webhooks: 5],
   plugins: [
     {Oban.Plugins.Pruner, max_age: 60 * 60 * 24 * 7}, # Retain jobs for 7 days
     {Oban.Plugins.Lifeline, rescue_after: :timer.minutes(30)},
     {Oban.Plugins.Cron,
      crontab: [
-       {"* * * * *", Globaltask.Workers.RecoverStaleApplicationsWorker}
+       {"* * * * *", Mccap.Workers.RecoverStaleApplicationsWorker}
      ]}
   ]
 

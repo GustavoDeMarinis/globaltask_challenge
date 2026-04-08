@@ -1,4 +1,4 @@
-defmodule GlobaltaskWeb.ConnCase do
+defmodule MccapWeb.ConnCase do
   @moduledoc """
   This module defines the test case to be used by
   tests that require setting up a connection.
@@ -11,7 +11,7 @@ defmodule GlobaltaskWeb.ConnCase do
   we enable the SQL sandbox, so changes done to the database
   are reverted at the end of every test. If you are using
   PostgreSQL, you can even run database tests asynchronously
-  by setting `use GlobaltaskWeb.ConnCase, async: true`, although
+  by setting `use MccapWeb.ConnCase, async: true`, although
   this option is not recommended for other databases.
   """
 
@@ -20,19 +20,19 @@ defmodule GlobaltaskWeb.ConnCase do
   using do
     quote do
       # The default endpoint for testing
-      @endpoint GlobaltaskWeb.Endpoint
+      @endpoint MccapWeb.Endpoint
 
-      use GlobaltaskWeb, :verified_routes
+      use MccapWeb, :verified_routes
 
       # Import conveniences for testing with connections
       import Plug.Conn
       import Phoenix.ConnTest
-      import GlobaltaskWeb.ConnCase
+      import MccapWeb.ConnCase
     end
   end
 
   setup tags do
-    Globaltask.DataCase.setup_sandbox(tags)
+    Mccap.DataCase.setup_sandbox(tags)
     {:ok, conn: Phoenix.ConnTest.build_conn()}
   end
 end

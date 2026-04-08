@@ -1,14 +1,16 @@
-# Globaltask — Multi-Country Credit Application Platform
+# MCCAP — Multi-Country Credit Application Platform
 
-A fintech MVP for processing credit applications across multiple Latin American and European countries, built with Elixir/Phoenix.
+> **Portfolio showcase** — a fintech-grade MVP demonstrating end-to-end Elixir/Phoenix architecture: country-specific business rules, async risk evaluation pipelines backed by PostgreSQL triggers and Oban, real-time LiveView dashboards, append-only audit trails, role-based API security, and Docker-first deployment.
+
+MCCAP processes credit applications across multiple Latin American and European countries (🇪🇸 ES, 🇵🇹 PT, 🇮🇹 IT, 🇲🇽 MX, 🇨🇴 CO, 🇧🇷 BR), each with its own document validation and underwriting rules. It is built as a single Elixir/Phoenix application that leans on the BEAM's concurrency primitives instead of bolting on extra infrastructure.
 
 ## Tech Stack
 
 - **Backend:** Elixir 1.16.1 / Phoenix 1.8 / Ecto
 - **Database:** PostgreSQL 16
 - **Background Jobs:** Oban (with Pruner, Lifeline, Stager plugins)
-- **Cache:** Cachex (configured in later issues)
-- **Logging:** logger_json (configured in later issues)
+- **Cache:** Cachex (in-process LRU)
+- **Logging:** logger_json (structured JSON logs)
 - **Container:** Docker / Docker Compose
 
 ## Prerequisites
@@ -17,9 +19,9 @@ A fintech MVP for processing credit applications across multiple Latin American 
 - Docker & Docker Compose
 - Make
 
-## 🚀 Fast Track Evaluation (< 5 mins)
+## 🚀 Quick Start with Docker (< 5 mins)
 
-To easily fulfill the evaluation environment requirement **without** installing Erlang, Elixir, or Node.js on your host machine (especially useful for Windows):
+To run the full stack **without** installing Erlang, Elixir, or Node.js on your host machine (especially useful on Windows):
 
 ```bash
 docker compose up --build
@@ -28,7 +30,7 @@ docker compose up --build
 *(The container automatically compiles assets, connects to PostgreSQL, and runs Ecto migrations on boot).*
 
 > **App URL:** http://localhost:4000
-> **Admin Impersonation:** Click "Impersonate Admin" in the header to unlock evaluation controls.
+> **Admin Impersonation:** Click "Impersonate Admin" in the header to unlock the admin-only controls.
 
 ---
 
@@ -71,10 +73,11 @@ See `.env.example` for the full list. Key variables:
 
 | Variable | Description | Default |
 |---|---|---|
-| `POSTGRES_USER` | PostgreSQL username | `globaltask` |
-| `POSTGRES_PASSWORD` | PostgreSQL password | `globaltask` |
+| `POSTGRES_USER` | PostgreSQL username | `mccap` |
+| `POSTGRES_PASSWORD` | PostgreSQL password | `mccap` |
+
 | `POSTGRES_HOST` | PostgreSQL host | `localhost` |
-| `POSTGRES_DB` | Database name | `globaltask_dev` |
+| `POSTGRES_DB` | Database name | `mccap_dev` |
 | `DB_POOL_SIZE` | DB connection pool size | `10` |
 | `SECRET_KEY_BASE` | Phoenix secret key | — (generate with `mix phx.gen.secret` or `docker compose run --rm app mix phx.gen.secret`) |
 | `PHX_HOST` | Public hostname | `localhost` |
@@ -84,7 +87,7 @@ See `.env.example` for the full list. Key variables:
 
 ```
 lib/
-├── globaltask/          # Domain layer (contexts, schemas, business logic)
+├── mccap/          # Domain layer (contexts, schemas, business logic)
 │   ├── application.ex   # OTP supervision tree
 │   ├── bank_provider.ex # Behaviour & dispatcher for external integrations
 │   ├── bank_provider/   # Country-specific bank integration adapters
@@ -94,7 +97,7 @@ lib/
 │   ├── pg_listener.ex   # PostgreSQL trigger notification listener
 │   ├── repo.ex          # Ecto repository
 │   └── workers/         # Oban background jobs (fetch & risk evaluation)
-└── globaltask_web/      # Web layer (controllers, views, channels)
+└── mccap_web/      # Web layer (controllers, views, channels)
     ├── controllers/     # HTTP request handlers
     ├── components/      # Phoenix components
     ├── endpoint.ex      # HTTP endpoint
@@ -104,7 +107,7 @@ lib/
 
 ## Docker
 
-The project uses a single, native `docker-compose.yml` to spin up both the Phoenix application and its PostgreSQL database. Background migrations are ran automatically using the `Globaltask.Release` runtime module.
+The project uses a single, native `docker-compose.yml` to spin up both the Phoenix application and its PostgreSQL database. Background migrations are ran automatically using the `Mccap.Release` runtime module.
 
 To fully stop and remove the containers:
 ```bash
@@ -136,11 +139,11 @@ Tests use `Ecto.Adapters.SQL.Sandbox` for isolated, concurrent database access.
 
 ## Monitoring & Scaling
 
-Globaltask uses `Oban` for robust, distributed job processing and `Telemetry` to instrument latency and traffic spikes natively. Background ingestions automatically exponentially backoff to respect Provider limits without stalling Web UI requests.
+Mccap uses `Oban` for robust, distributed job processing and `Telemetry` to instrument latency and traffic spikes natively. Background ingestions automatically exponentially backoff to respect Provider limits without stalling Web UI requests.
 
 ---
 
-## 🖥️ Web UI & Real-Time Dashboard (Issue #6)
+## 🖥️ Web UI & Real-Time Dashboard
 
 This application includes a real-time reactive Web UI built using **Phoenix LiveView**, which allows us to build interactive features without the need for an external Single Page Application (SPA). 
 
@@ -168,7 +171,7 @@ To satisfy rigorous security boundaries, sensitive risk data and manual state ma
 Building natively via LiveView is a deliberate architectural choice. Given Elixir's concurrency primitives, separating the frontend into an external repository would introduce REST latency, CORS complexity, and duplicated type/schema models. LiveView is a highly effective choice for this MVP.
 ## Async Risk Evaluation Pipeline
 
-Globaltask features a robust asynchronous pipeline to fetch data from local bank providers and evaluate credit risk without blocking the API:
+Mccap features a robust asynchronous pipeline to fetch data from local bank providers and evaluate credit risk without blocking the API:
 1. **PG Trigger**: A PostgreSQL `AFTER INSERT` trigger fires a `pg_notify` event whenever a new application is created.
 2. **PgListener**: A GenServer listens for these notifications and enqueues an Oban job, ensuring decoupling from web request cycles.
 3. **FetchProviderDataWorker**: An Oban worker fetching simulated external data (e.g. Credit Score, Debt Ratio) via the `BankProvider` behaviour.
@@ -186,11 +189,11 @@ The async pipeline relies on decoupled background processes. To monitor health a
 
 ## Assumptions & Trade-offs
 
-- **Append-Only Audit Trail (Bonus Req)** — To satisfy the requirement for change auditing, state mutations operate within an `Ecto.Multi` transaction. This inserts a record into the `credit_application_audit_logs` table to track status changes.
-- **Metrics & Dashboards (Bonus Req)** — The application incorporates the native Elixir **Phoenix LiveDashboard** (`/dev/dashboard` in development) to monitor Erlang VM memory, active DB queries, and request latency.
-- **Advanced Resilience (Bonus Req)** — The platform delegates webhook delivery and background risk evaluations to **Oban**. Oban automatically provides queues backed by PostgreSQL and uses exponential backoff retry mechanisms for resilience against temporary external outages.
+- **Append-Only Audit Trail** — State mutations operate within an `Ecto.Multi` transaction that inserts a record into the `credit_application_audit_logs` table, providing a tamper-evident history of every status change.
+- **Metrics & Dashboards** — The application embeds the native **Phoenix LiveDashboard** (`/dev/dashboard` in development) to monitor Erlang VM memory, active DB queries, and request latency.
+- **Advanced Resilience** — Webhook delivery and background risk evaluations are delegated to **Oban**, which provides queues backed by PostgreSQL with exponential backoff retries for resilience against temporary external outages.
 
-- **Static Token Authority (MVP Authentication)** — To fulfill the requirement of securing PII without building a complex users table and RBAC management UI, the API uses a `/api/v1/auth/token` endpoint that generates signed JWTs natively. The `provider_payload` is gracefully stripped from JSON responses for any token without the explicit `admin` role.
+- **Static Token Authority (MVP Authentication)** — To secure PII without building a full users table and RBAC management UI, the API exposes a `/api/v1/auth/token` endpoint that issues signed JWTs natively. The `provider_payload` is stripped from JSON responses for any token without the explicit `admin` role.
 - **Webhook Delivery via Oban** — Webhooks are asynchronously dispatched for terminal state changes. Instead of implementing custom HMAC signatures or separate Webhook Log tables—which adds significant overhead for an MVP—the system relies entirely on Oban's native capabilities (`oban_jobs` table) for exponential backoff, retry history, and transactional enqueuing via `Ecto.Multi`. Redundant processing is naturally blocked by our DB state machine constraints.
 - **In-Memory Caching** — Instead of introducing Redis for a simple cache, we rely on `Cachex` in the supervision tree. To prevent unbounded memory growth, the cache is explicitly constrained by a hard `limit: 10_000` keys paired with an LRU eviction policy. Invalidation automatically occurs upon mutation.
 - **Global state machine** — status transitions (`created → pending_review → approved/rejected`) are the same for all countries. Country-specific rules validate documents and enforce business thresholds but do not alter the transition graph.
@@ -258,7 +261,7 @@ Each credit application stores the applicant's document data (name, document typ
 
 ### Country-Specific Validation Rules
 
-Country rules implement a **strategy pattern** using Elixir behaviours. Each country module lives in `lib/globaltask/country_rules/` and implements the `Globaltask.CountryRules` behaviour:
+Country rules implement a **strategy pattern** using Elixir behaviours. Each country module lives in `lib/mccap/country_rules/` and implements the `Mccap.CountryRules` behaviour:
 
 | Country | Document Type | Document Validation | Business Rule |
 |---|---|---|---|
@@ -283,6 +286,6 @@ CountryRules (behaviour)           Country Modules
 
 **Adding a new country** requires only:
 
-1. Create `lib/globaltask/country_rules/<code>.ex` implementing the behaviour
-2. Add the mapping to `@country_modules` in `lib/globaltask/country_rules.ex`
+1. Create `lib/mccap/country_rules/<code>.ex` implementing the behaviour
+2. Add the mapping to `@country_modules` in `lib/mccap/country_rules.ex`
 3. Add the country code to the PostgreSQL `country_code` ENUM via migration

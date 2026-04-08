@@ -71,7 +71,7 @@ RUN groupadd --system app && \
     useradd --system --gid app --home /app app
 
 # Copy the release from the builder stage
-COPY --from=builder --chown=app:app /app/_build/prod/rel/globaltask ./
+COPY --from=builder --chown=app:app /app/_build/prod/rel/mccap ./
 
 USER app
 
@@ -85,4 +85,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:4000/ || exit 1
 
 # Automatically run pending migrations before starting the Phoenix Release
-CMD ["sh", "-c", "bin/globaltask eval 'Globaltask.Release.migrate()' && bin/globaltask start"]
+CMD ["sh", "-c", "bin/mccap eval 'Mccap.Release.migrate()' && bin/mccap start"]

@@ -1,2 +1,2 @@
 ExUnit.start(exclude: [:pending])
-Ecto.Adapters.SQL.Sandbox.mode(Globaltask.Repo, :manual)
+Ecto.Adapters.SQL.Sandbox.mode(Mccap.Repo, :manual)

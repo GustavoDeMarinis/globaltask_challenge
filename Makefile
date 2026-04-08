@@ -1,4 +1,4 @@
-APP_NAME=globaltask
+APP_NAME=mccap
 DOCKER_COMPOSE=docker compose
 ENV_FILE=.env
 

@@ -1,4 +1,4 @@
-defmodule Globaltask.Repo.Migrations.CreateCreditApplicationAuditLogs do
+defmodule Mccap.Repo.Migrations.CreateCreditApplicationAuditLogs do
   use Ecto.Migration
 
   def change do

@@ -1,4 +1,4 @@
-defmodule Globaltask.Repo.Migrations.FixPartialUniqueIndexExcludeApproved do
+defmodule Mccap.Repo.Migrations.FixPartialUniqueIndexExcludeApproved do
   use Ecto.Migration
 
   @doc """

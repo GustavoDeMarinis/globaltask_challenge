@@ -1,4 +1,4 @@
-defmodule Globaltask.Repo.Migrations.CreateCreditApplications do
+defmodule Mccap.Repo.Migrations.CreateCreditApplications do
   use Ecto.Migration
 
   def up do

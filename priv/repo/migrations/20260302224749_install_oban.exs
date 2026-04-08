@@ -1,4 +1,4 @@
-defmodule Globaltask.Repo.Migrations.InstallOban do
+defmodule Mccap.Repo.Migrations.InstallOban do
   use Ecto.Migration
 
   def up do

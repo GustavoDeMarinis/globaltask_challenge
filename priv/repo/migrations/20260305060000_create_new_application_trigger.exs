@@ -1,4 +1,4 @@
-defmodule Globaltask.Repo.Migrations.CreateNewApplicationTrigger do
+defmodule Mccap.Repo.Migrations.CreateNewApplicationTrigger do
   use Ecto.Migration
 
   def up do

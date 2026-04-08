@@ -24,7 +24,7 @@ erl_crash.dump
 /tmp/
 
 # Ignore package tarball (built via "mix hex.build").
-globaltask-*.tar
+mccap-*.tar
 
 # Environment variables and secrets — never commit these.
 .env

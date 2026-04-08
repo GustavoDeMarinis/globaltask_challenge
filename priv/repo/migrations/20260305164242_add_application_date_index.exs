@@ -1,4 +1,4 @@
-defmodule Globaltask.Repo.Migrations.AddApplicationDateIndex do
+defmodule Mccap.Repo.Migrations.AddApplicationDateIndex do
   use Ecto.Migration
 
   def change do

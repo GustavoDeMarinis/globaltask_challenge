@@ -1,18 +1,18 @@
 services:
   postgres:
     image: postgres:16
-    container_name: globaltask_postgres
+    container_name: mccap_postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-globaltask}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-globaltask}
-      POSTGRES_DB: ${POSTGRES_DB:-globaltask_dev}
+      POSTGRES_USER: ${POSTGRES_USER:-mccap}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mccap}
+      POSTGRES_DB: ${POSTGRES_DB:-mccap_dev}
     ports:
       - "5432:5432"
     volumes:
       - pg_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-globaltask} -d $${POSTGRES_DB:-globaltask_dev}"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-mccap} -d $${POSTGRES_DB:-mccap_dev}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -20,12 +20,12 @@ services:
   app:
     build:
       context: .
-    container_name: globaltask_app
+    container_name: mccap_app
     depends_on:
       postgres:
         condition: service_healthy
     environment:
-      DATABASE_URL: ecto://${POSTGRES_USER:-globaltask}:${POSTGRES_PASSWORD:-globaltask}@postgres/${POSTGRES_DB:-globaltask_dev}
+      DATABASE_URL: ecto://${POSTGRES_USER:-mccap}:${POSTGRES_PASSWORD:-mccap}@postgres/${POSTGRES_DB:-mccap_dev}
       SECRET_KEY_BASE: ${SECRET_KEY_BASE}
       PHX_HOST: localhost
     ports:

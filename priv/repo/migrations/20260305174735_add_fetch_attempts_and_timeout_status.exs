@@ -1,4 +1,4 @@
-defmodule Globaltask.Repo.Migrations.AddFetchAttemptsAndTimeoutStatus do
+defmodule Mccap.Repo.Migrations.AddFetchAttemptsAndTimeoutStatus do
   use Ecto.Migration
 
   @disable_ddl_transaction true

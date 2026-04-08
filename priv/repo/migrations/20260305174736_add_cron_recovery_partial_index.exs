@@ -1,4 +1,4 @@
-defmodule Globaltask.Repo.Migrations.AddCronRecoveryPartialIndex do
+defmodule Mccap.Repo.Migrations.AddCronRecoveryPartialIndex do
   use Ecto.Migration
 
   @disable_ddl_transaction true

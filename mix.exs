@@ -1,9 +1,9 @@
-defmodule Globaltask.MixProject do
+defmodule Mccap.MixProject do
   use Mix.Project
 
   def project do
     [
-      app: :globaltask,
+      app: :mccap,
       version: "0.1.0",
       elixir: "~> 1.15",
       elixirc_paths: elixirc_paths(Mix.env()),
@@ -18,7 +18,7 @@ defmodule Globaltask.MixProject do
   # Type `mix help compile.app` for more information.
   def application do
     [
-      mod: {Globaltask.Application, []},
+      mod: {Mccap.Application, []},
       extra_applications: [:logger, :runtime_tools]
     ]
   end
@@ -61,7 +61,8 @@ defmodule Globaltask.MixProject do
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev], runtime: false},
       {:esbuild, "~> 0.8", runtime: Mix.env() == :dev},
-      {:tailwind, "~> 0.2", runtime: Mix.env() == :dev}
+      {:tailwind, "~> 0.2", runtime: Mix.env() == :dev},
+      {:ex_doc, "~> 0.31", only: :dev, runtime: false}
     ]
   end
 
